@@ -1,0 +1,156 @@
+===============================================================
+     FILE GUIDE - What Each File Does (In Simple Terms)
+     AI-Powered Electronics Knowledge Base
+===============================================================
+
+
+======================== main.py ========================
+
+This is the STARTING POINT of the entire backend.
+When you run "python main.py", this file boots up the server.
+
+What it does:
+- Creates the FastAPI app (the core of your backend)
+- Sets up CORS so that your React frontend can talk to this backend
+- Creates storage folders (uploads/ and processed/) if they don't exist
+- Initializes the database tables when the server starts
+- Has a /health endpoint to check if the server is alive
+- Runs the Uvicorn server on port 8000
+
+Think of it like: The main power switch of a building.
+Everything else only works when this is ON.
+
+
+======================== database/connection.py ========================
+
+This is the PLUMBING between your Python code and the database.
+Every file that needs to read/write data goes through this.
+
+What it does:
+- Points to the SQLite database file (storage/electronics_kb.db)
+- Creates the "engine" — the connection pipe to the database
+- Creates a "session factory" — makes new database sessions on demand
+- Provides get_db() — gives each API request its own session, auto-closes when done
+- Provides init_db() — creates all tables when called from main.py
+
+Think of it like: The water pipes in a house.
+You don't see them, but every tap (file) uses them to get water (data).
+
+Database used: SQLite (a file-based database, no server needed)
+Can be swapped to PostgreSQL or MySQL by changing ONE line (the DATABASE_URL).
+
+
+======================== database/models.py ========================
+
+This defines the TABLES in your database.
+Think of each table like a spreadsheet — rows are records, columns are fields.
+
+Tables created:
+
+1. Document table — stores info about every uploaded PDF
+   Columns: id, filename, file_path, file_size, total_pages, upload_date, status
+   Example row: {id: 1, filename: "LM7805.pdf", status: "completed", total_pages: 24}
+
+2. DocumentChunk table — stores text pieces extracted from PDFs
+   Columns: id, document_id, chunk_text, chunk_index, page_number, chunk_type, embedding_id
+   Example row: {id: 5, document_id: 1, chunk_text: "Output voltage is 5V...", page_number: 3}
+
+3. ChatHistory table — stores every question and AI-generated answer
+   Columns: id, question, answer, sources, timestamp
+   Example row: {id: 1, question: "What is max voltage?", answer: "The max voltage is..."}
+
+Relationships:
+- One Document has MANY DocumentChunks (1 PDF = 50+ text chunks)
+- If a Document is deleted, all its chunks are automatically deleted too
+
+Think of it like: The blueprint of your filing cabinet.
+It defines WHAT drawers exist and WHAT goes in each one.
+
+
+======================== database/crud.py ========================
+
+CRUD = Create, Read, Update, Delete.
+This file has helper functions to interact with the database.
+Instead of writing raw database queries everywhere, you call these functions.
+
+Functions:
+
+FOR DOCUMENTS:
+- create_document()         — saves a new PDF record when uploaded
+- get_document()            — fetches one document by its ID
+- get_all_documents()       — fetches all documents (with pagination)
+- update_document_status()  — changes status: "pending" → "processing" → "completed"
+- delete_document()         — removes a document and all its chunks
+
+FOR CHUNKS:
+- create_chunks()           — saves multiple text chunks for a document at once
+- get_chunks_by_document()  — gets all chunks for a specific document, in order
+
+FOR CHAT:
+- create_chat_entry()       — saves a question + answer + sources
+- get_chat_history()        — fetches past conversations, newest first
+
+Think of it like: A librarian.
+You don't go into the storage room yourself — you ask the librarian to
+find, store, update, or remove books for you.
+
+
+======================== schemas/document_schema.py ========================
+
+This defines the SHAPE of data that flows between frontend and backend.
+It's a CONTRACT — both sides agree on what format data should be in.
+
+Difference from models.py:
+- models.py = how data is STORED (database side)
+- schemas = how data is SENT and RECEIVED (API side)
+
+Schemas:
+
+1. DocumentUploadResponse — what frontend gets RIGHT AFTER uploading a PDF
+   Fields: id, filename, status, message
+   Example: {"id": 1, "filename": "LM7805.pdf", "status": "pending", "message": "Upload successful"}
+
+2. DocumentChunkResponse — details about one parsed text chunk
+   Fields: id, chunk_text, chunk_index, page_number, chunk_type
+
+3. DocumentResponse — full details about one document (with its chunks)
+   Fields: id, filename, file_size, total_pages, upload_date, status, chunks[]
+
+4. DocumentListResponse — list of all documents with count
+   Fields: total, documents[]
+
+5. DocumentStatusUpdate — processing progress update
+   Fields: id, status, total_pages
+
+Think of it like: A shipping label.
+It defines exactly what's inside the package and what format it's in,
+so the receiver (frontend) knows how to unpack it.
+
+
+======================== schemas/chat_schema.py ========================
+
+Same as document_schema.py, but for the CHAT/QA system.
+
+Schemas:
+
+1. ChatRequest — what the frontend sends when a user asks a question
+   Fields: question, document_ids (optional — limits search to specific PDFs)
+   Example: {"question": "What is the output voltage?", "document_ids": [1, 3]}
+
+2. CitationSource — one source used to build the AI's answer
+   Fields: document_id, document_name, page_number, chunk_text, relevance_score
+   Example: {"document_name": "LM7805.pdf", "page_number": 4, "chunk_text": "Output voltage..."}
+
+3. ChatResponse — the complete AI answer sent back to frontend
+   Fields: question, answer, sources[] (list of citations)
+   This is the CORE OUTPUT of the entire RAG pipeline.
+
+4. ChatHistoryItem — one past Q&A entry
+   Fields: id, question, answer, sources, timestamp
+
+5. ChatHistoryResponse — list of past conversations
+   Fields: total, history[]
+
+Think of it like: A Q&A exam sheet.
+The question comes in (ChatRequest), the answer goes out (ChatResponse),
+and the citations prove where the answer came from (CitationSource).
