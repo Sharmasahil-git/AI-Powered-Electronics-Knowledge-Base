@@ -1,0 +1,57 @@
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Float
+from sqlalchemy.orm import relationship
+from datetime import datetime
+
+from database.connection import Base
+
+
+# ===================== DOCUMENT TABLE =====================
+# Stores metadata about every PDF uploaded to the system.
+# Each row = one uploaded datasheet/document.
+class Document(Base):
+    __tablename__ = "documents"
+
+    id = Column(Integer, primary_key=True, index=True)
+    filename = Column(String(255), nullable=False)
+    file_path = Column(String(500), nullable=False)
+    file_size = Column(Integer, nullable=False)
+    total_pages = Column(Integer, default=0)
+    upload_date = Column(DateTime, default=datetime.utcnow)
+    status = Column(String(50), default="pending")
+
+    # ---- Relationship ----
+    # Links this document to all its chunks.
+    # If a document is deleted, all its chunks are automatically deleted too (cascade).
+    chunks = relationship("DocumentChunk", back_populates="document", cascade="all, delete-orphan")
+
+
+# ===================== DOCUMENT CHUNK TABLE =====================
+# Stores individual text pieces extracted from a PDF.
+# Each row = one chunk of text from a specific page of a specific document.
+class DocumentChunk(Base):
+    __tablename__ = "document_chunks"
+
+    id = Column(Integer, primary_key=True, index=True)
+    document_id = Column(Integer, ForeignKey("documents.id"), nullable=False)
+    chunk_text = Column(Text, nullable=False)
+    chunk_index = Column(Integer, nullable=False)
+    page_number = Column(Integer, nullable=False)
+    chunk_type = Column(String(50), default="text")
+    embedding_id = Column(String(255), nullable=True)
+
+    # ---- Relationship ----
+    # Links this chunk back to its parent document.
+    document = relationship("Document", back_populates="chunks")
+
+
+# ===================== CHAT HISTORY TABLE =====================
+# Stores every question asked by the user and the AI-generated answer.
+# 'sources' holds citation info as a JSON string (e.g., which pages were referenced).
+class ChatHistory(Base):
+    __tablename__ = "chat_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+    question = Column(Text, nullable=False)
+    answer = Column(Text, nullable=False)
+    sources = Column(Text, nullable=True)
+    timestamp = Column(DateTime, default=datetime.utcnow)
