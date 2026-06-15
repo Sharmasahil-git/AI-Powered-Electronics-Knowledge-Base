@@ -13,11 +13,11 @@
 - [x] `schemas/chat_schema.py` — Pydantic schemas for chat request/response
 
 ### Phase 3: Core Processing Pipeline
-- [ ] `parsers/pdf_parser.py` — PDF text extraction (PyMuPDF)
-- [ ] `parsers/table_parser.py` — Table extraction (Camelot/Tabula)
-- [ ] `chunking/text_chunker.py` — Text splitting into retrieval chunks (LangChain)
-- [ ] `embeddings/embedding_generator.py` — Vector embedding generation (Sentence Transformers)
-- [ ] `vector_db/faiss_manager.py` — FAISS index management
+- [x] `parsers/pdf_parser.py` — PDF text extraction (PyMuPDF)
+- [x] `parsers/table_parser.py` — Table extraction (Camelot/Tabula)
+- [x] `chunking/text_chunker.py` — Text splitting into retrieval chunks (LangChain)
+- [x] `embeddings/embedding_generator.py` — Vector embedding generation (Sentence Transformers)
+- [x] `vector_db/faiss_manager.py` — FAISS index management
 
 ### Phase 4: Services & Intelligence
 - [ ] `services/pdf_service.py` — End-to-end PDF processing orchestration
@@ -34,6 +34,10 @@
 - fastapi 0.136.3
 - uvicorn 0.49.0
 - sqlalchemy 2.0.50
+- PyMuPDF (PDF and table parser)
+- langchain-text-splitters (Text chunking)
+- sentence-transformers (Vector embeddings)
+- faiss-cpu (Vector database for RAG)
 
 ## Rules
 - Add comments explaining each code block
