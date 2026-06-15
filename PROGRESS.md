@@ -9,8 +9,8 @@
 - [x] `database/crud.py` — CRUD operations for all three tables
 
 ### Phase 2: Schemas
-- [ ] `schemas/document_schema.py` — Pydantic schemas for document request/response
-- [ ] `schemas/chat_schema.py` — Pydantic schemas for chat request/response
+- [x] `schemas/document_schema.py` — Pydantic schemas for document request/response
+- [x] `schemas/chat_schema.py` — Pydantic schemas for chat request/response
 
 ### Phase 3: Core Processing Pipeline
 - [ ] `parsers/pdf_parser.py` — PDF text extraction (PyMuPDF)

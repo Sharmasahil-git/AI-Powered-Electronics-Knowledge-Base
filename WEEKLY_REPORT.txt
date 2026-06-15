@@ -36,14 +36,23 @@ Session 1 (Night):
 - Initialized Git, committed code, pushed to GitHub
   Repository: github.com/Sharmasahil-git/AI-Powered-Electronics-Knowledge-Base
 
-Session 2 (Evening):
+Session 2 (Evening/Night):
 - Built schemas/document_schema.py — Pydantic schemas for API data validation:
   - DocumentUploadResponse (after PDF upload)
   - DocumentChunkResponse (parsed text chunk details)
   - DocumentResponse (full document info with chunks)
   - DocumentListResponse (paginated document listing)
   - DocumentStatusUpdate (processing progress tracking)
+- Built schemas/chat_schema.py — Pydantic schemas for chat/QA system:
+  - ChatRequest (user question with optional document filter)
+  - CitationSource (traceable answer source with relevance score)
+  - ChatResponse (AI answer + list of citations)
+  - ChatHistoryItem (single past Q&A entry)
+  - ChatHistoryResponse (paginated chat history)
+- Created FILE_GUIDE.txt — beginner-friendly explanation of what each file does
+- Created WEEKLY_REPORT.txt — daily progress tracker for internship reports
+- Researched Vision API integration for diagram/symbol recognition (future feature)
 
 Packages installed today: fastapi, uvicorn, sqlalchemy
-Files completed today: main.py, connection.py, models.py, crud.py, document_schema.py
-Total files completed: 5 / 18
+Files completed today: main.py, connection.py, models.py, crud.py, document_schema.py, chat_schema.py
+Total files completed: 6 / 18
