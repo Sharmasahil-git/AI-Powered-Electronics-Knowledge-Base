@@ -56,3 +56,26 @@ Session 2 (Evening/Night):
 Packages installed today: fastapi, uvicorn, sqlalchemy
 Files completed today: main.py, connection.py, models.py, crud.py, document_schema.py, chat_schema.py
 Total files completed: 6 / 18
+--- Day 2: 15 June 2026 (Sunday) ---
+
+Session 3 (Morning/Afternoon):
+- Built parsers/pdf_parser.py — Core PDF text and image extraction using PyMuPDF. Filters tiny images and extracts clean text page-by-page.
+- Built parsers/table_parser.py — Advanced table structure extraction. Converts parsed tables into clean text for AI comprehension.
+- Tested and verified PDF parsing successfully with sample LM340 datasheet.
+
+Packages installed today: PyMuPDF
+Files completed today: pdf_parser.py, table_parser.py
+Total files completed: 8 / 18
+
+
+--- Day 3: 16 June 2026 (Monday) ---
+
+Session 4 (Night):
+- Built chunking/text_chunker.py — Implemented LangChain RecursiveCharacterTextSplitter for intelligent text segmenting with overlap (prevents context loss).
+- Built embeddings/embedding_generator.py — Implemented SentenceTransformers (all-MiniLM-L6-v2) to convert text chunks into 384-dimensional mathematical vectors locally.
+- Built vector_db/faiss_manager.py — Configured FAISS (Facebook AI Similarity Search) to store vectors and perform instant similarity matching for RAG pipeline.
+- Achieved 100% completion of Phase 3 (Core Processing Pipeline).
+
+Packages installed today: langchain-text-splitters, sentence-transformers, faiss-cpu
+Files completed today: text_chunker.py, embedding_generator.py, faiss_manager.py
+Total files completed: 11 / 18

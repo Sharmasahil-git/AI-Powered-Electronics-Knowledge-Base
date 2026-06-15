@@ -154,3 +154,64 @@ Schemas:
 Think of it like: A Q&A exam sheet.
 The question comes in (ChatRequest), the answer goes out (ChatResponse),
 and the citations prove where the answer came from (CitationSource).
+
+
+======================== parsers/pdf_parser.py ========================
+
+This is the core engine that extracts raw content from PDF datasheets.
+
+What it does:
+- Reads the PDF page by page using PyMuPDF.
+- Extracts all the text.
+- Extracts all the images (ignoring tiny ones like bullet points).
+- Extracts metadata like total pages and title.
+
+Think of it like: A text scanner. It takes a picture book and reads the words out loud.
+
+
+======================== parsers/table_parser.py ========================
+
+Datasheets have a lot of tables. This file specifically looks for them.
+
+What it does:
+- Scans the PDF for table structures.
+- Pulls out the headers and the rows.
+- Converts the table into a clean text format (e.g., "Parameter: Max Voltage | Value: 35V") so the AI can easily read it.
+
+Think of it like: An accountant organizing a messy pile of receipts into a neat Excel spreadsheet.
+
+
+======================== chunking/text_chunker.py ========================
+
+AI cannot read a 30-page document all at once. It needs smaller chunks.
+
+What it does:
+- Takes the massive wall of text from the PDF.
+- Uses LangChain to split it into chunks of ~1,000 characters.
+- Overlaps the chunks slightly so a sentence isn't accidentally cut in half, preserving context.
+
+Think of it like: Slicing a whole pizza into manageable slices so you can eat it.
+
+
+======================== embeddings/embedding_generator.py ========================
+
+AI searches by "meaning", not just exact words. To do that, words must become numbers.
+
+What it does:
+- Loads a local AI model (SentenceTransformers).
+- Takes a chunk of text and translates it into a list of 384 numbers (a vector).
+- Also translates user questions into vectors so they can be compared.
+
+Think of it like: A translator turning English into a mathematical language the database understands.
+
+
+======================== vector_db/faiss_manager.py ========================
+
+Standard databases are terrible at searching through lists of 384 numbers. We need a vector database.
+
+What it does:
+- Uses FAISS (Facebook AI Similarity Search) to store the vectors.
+- When a user asks a question, it instantly finds the 5 closest vectors (most relevant text chunks) out of thousands.
+- Saves the database to the hard drive so it isn't lost on restart.
+
+Think of it like: A bloodhound. You give it the scent (the question's vector), and it instantly tracks down the matching text chunks.
