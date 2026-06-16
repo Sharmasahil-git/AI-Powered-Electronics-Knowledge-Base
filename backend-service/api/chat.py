@@ -24,7 +24,12 @@ def ask_question(request: ChatRequest, db: Session = Depends(get_db)):
         
     # Pass the question to our RAG service, which handles the searching and AI generation
     # It returns a fully formatted ChatResponse containing the answer and citations
-    response = rag_service.answer_question(question=request.question, db=db)
+    # Pass the question AND the requested document IDs to the RAG service
+    response = rag_service.answer_question(
+        question=request.question, 
+        db=db,
+        document_ids=request.document_ids
+    )
     
     return response
 

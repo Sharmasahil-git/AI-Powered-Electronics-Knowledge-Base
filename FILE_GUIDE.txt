@@ -215,3 +215,99 @@ What it does:
 - Saves the database to the hard drive so it isn't lost on restart.
 
 Think of it like: A bloodhound. You give it the scent (the question's vector), and it instantly tracks down the matching text chunks.
+
+
+======================== services/pdf_service.py ========================
+
+This is the factory manager that controls the PDF extraction process.
+
+What it does:
+- Takes a new PDF and tells the parsers (PyMuPDF & Camelot) to extract text and tables.
+- Merges the table data back into the page text.
+- Tells the chunker to slice it into small pieces.
+- Saves all those pieces to the SQLite database.
+
+Think of it like: An assembly line manager making sure the raw materials (PDFs) get chopped up and boxed (database) correctly.
+
+
+======================== services/embedding_service.py ========================
+
+This is the factory manager for the AI math conversion.
+
+What it does:
+- Looks in the database for chunks of text that haven't been processed yet.
+- Tells the EmbeddingGenerator to convert them into math vectors.
+- Tells the FAISSManager to store those vectors so they can be searched instantly.
+
+Think of it like: The second assembly line manager that takes the boxed text, translates it into math, and puts it in the high-speed filing cabinet.
+
+
+======================== services/citation_service.py ========================
+
+This bridges the gap between the math database (FAISS) and the human reader.
+
+What it does:
+- Takes the raw Chunk IDs returned by the vector search (e.g., "Chunk #105").
+- Looks up exactly what that chunk is in the SQLite database.
+- Formats it so the user sees the actual text, the PDF name, and the page number.
+
+Think of it like: A librarian who takes a catalog number and fetches the exact book and highlights the exact paragraph for you.
+
+
+======================== services/rag_service.py ========================
+
+This is the Brain of the entire application. RAG stands for Retrieval-Augmented Generation.
+
+What it does:
+- Takes the user's text question and converts it to a math vector.
+- Searches FAISS for the 5 most relevant chunks.
+- Passes those chunks and the question to the AI Language Model.
+- Tells the AI: "Answer this question using ONLY this provided information."
+- Saves the final answer and citations to the chat history database.
+
+Think of it like: The expert Engineer who reads the 5 pages the librarian found and writes a perfect, easy-to-understand answer for the user.
+
+
+======================== api/upload.py ========================
+
+This creates the web address (POST /api/upload) that the React frontend talks to.
+
+What it does:
+- Receives the raw PDF file from the user's browser.
+- Saves it securely to the storage/uploads folder.
+- Creates a database record for it.
+- Triggers the background processing (pdf_service and embedding_service) so the frontend doesn't freeze while waiting.
+
+
+======================== api/documents.py ========================
+
+This creates the web addresses (GET /api/documents) for the dashboard.
+
+What it does:
+- Allows the frontend to request a list of all uploaded PDFs to show on the screen.
+- Allows the frontend to check the exact details of a single PDF.
+- Allows the user to delete a PDF (which automatically deletes it from the hard drive and the database).
+
+
+======================== api/chat.py ========================
+
+This creates the web address (POST /api/chat) for the chat interface.
+
+What it does:
+- Receives the user's typed question from the React frontend.
+- Passes it to the rag_service to get the AI's answer.
+- Returns the answer and the citations directly back to the user's screen.
+- Also allows the frontend to load past conversation history when the app opens.
+
+
+======================== DOWNLOADED AI MODELS ========================
+
+When you run the server for the first time, the `sentence-transformers` library downloads the `all-MiniLM-L6-v2` AI model to your computer.
+
+If you ever want to delete this model in the future to free up hard drive space (it takes up about ~80MB), you can find it here:
+
+**On Windows:**
+Go to this folder in your File Explorer:
+`C:\Users\<Your-Username>\.cache\huggingface\hub\`
+
+You can safely delete the `huggingface` folder inside `.cache` when you are completely done with the project!

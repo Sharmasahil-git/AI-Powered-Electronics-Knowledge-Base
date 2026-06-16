@@ -22,17 +22,18 @@ class RAGService:
         self.api_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={self.api_key}"
 
     # ===================== ANSWER QUESTION =====================
-    def answer_question(self, question: str, db: Session) -> ChatResponse:
+    def answer_question(self, question: str, db: Session, document_ids: Optional[List[int]] = None) -> ChatResponse:
         # 1. Convert the user's question into a 384-dimensional vector
         print(f"Embedding question: '{question}'")
         question_vector = self.embedding_generator.generate_embedding(question)
 
-        # 2. Search FAISS for the top 5 most relevant chunks of text across all PDFs
+        # 2. Search FAISS for the top 20 most relevant chunks (so we have enough to filter)
         print("Searching database for relevant information...")
-        search_results = self.faiss_manager.search(query_embedding=question_vector, k=5)
+        search_results = self.faiss_manager.search(query_embedding=question_vector, k=20)
 
         # 3. Use the CitationService to convert those raw IDs into readable citations
-        citations = CitationService.build_citations(db=db, faiss_results=search_results)
+        #    and filter them down to just the 5 best that match the document_ids
+        citations = CitationService.build_citations(db=db, faiss_results=search_results, document_ids=document_ids)
 
         # 4. If FAISS found nothing, tell the user gracefully
         if not citations:

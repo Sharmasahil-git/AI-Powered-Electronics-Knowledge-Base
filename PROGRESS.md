@@ -38,6 +38,8 @@
 - langchain-text-splitters (Text chunking)
 - sentence-transformers (Vector embeddings)
 - faiss-cpu (Vector database for RAG)
+- python-dotenv
+- python-multipart
 
 ## Rules
 - Add comments explaining each code block
