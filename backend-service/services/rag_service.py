@@ -17,7 +17,7 @@ class RAGService:
         # We need FAISS to search for the closest matching chunks
         self.faiss_manager = FAISSManager()
         # The Gemini API Key must be set in your environment variables for this to work
-        self.api_key = os.getenv("GEMINI_API_KEY", "")
+        self.api_key = os.getenv("GEMINI_API_KEY", "").strip()
         # The exact web address for the free Gemini 2.5 Flash model
         self.api_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={self.api_key}"
 
@@ -52,12 +52,12 @@ class RAGService:
         answer = self._ask_gemini(question, context_text)
 
         # 7. Save the conversation into the SQLite database for history
-        # We save the citations as a list of dictionaries (using model_dump())
+        # We save the citations as a JSON string so SQLite can store it safely
         crud.create_chat_entry(
             db=db,
             question=question,
             answer=answer,
-            sources=[cite.model_dump() for cite in citations]
+            sources=json.dumps([cite.model_dump() for cite in citations])
         )
 
         # 8. Return the final formatted response to the frontend

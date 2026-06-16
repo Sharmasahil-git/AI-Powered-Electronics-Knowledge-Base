@@ -39,7 +39,7 @@ class PDFService:
             for table in tables_data:
                 page_idx = table["page_number"] - 1
                 if 0 <= page_idx < len(pages_data):
-                    pages_data[page_idx]["text"] += f"\n\n--- TABLE EXTRACTED ---\n{table['table_text']}\n-----------------------"
+                    pages_data[page_idx]["text"] += f"\n\n--- TABLE EXTRACTED ---\n{table['text']}\n-----------------------"
 
             # 5. Chunk the massive text into bite-sized pieces for the AI
             print("Chunking document text...")

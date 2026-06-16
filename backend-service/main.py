@@ -2,6 +2,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
 import uvicorn
+from dotenv import load_dotenv
+
+# Load environment variables from the .env file immediately
+load_dotenv()
+
 from database.connection import init_db
 from database import models
 from api import upload, documents, chat

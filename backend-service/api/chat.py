@@ -10,15 +10,14 @@ from services.rag_service import RAGService
 # Create a FastAPI router for chat-related endpoints
 router = APIRouter()
 
-# Instantiate the AI service once so it's ready to go
-rag_service = RAGService()
-
-
 # ===================== ASK A QUESTION =====================
 # The web address will be: POST /api/chat
 # This is what gets called when the user types a question and hits 'Send'
 @router.post("/", response_model=ChatResponse)
 def ask_question(request: ChatRequest, db: Session = Depends(get_db)):
+    # Instantiate the AI service fresh on every request so it reads the latest database
+    rag_service = RAGService()
+    
     # Make sure the user actually typed something
     if not request.question.strip():
         raise HTTPException(status_code=400, detail="Question cannot be empty.")
