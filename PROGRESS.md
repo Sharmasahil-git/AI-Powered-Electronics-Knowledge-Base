@@ -20,10 +20,10 @@
 - [x] `vector_db/faiss_manager.py` — FAISS index management
 
 ### Phase 4: Services & Intelligence
-- [ ] `services/pdf_service.py` — End-to-end PDF processing orchestration
-- [ ] `services/embedding_service.py` — Embedding service layer
-- [ ] `services/citation_service.py` — Citation mapping logic
-- [ ] `services/rag_service.py` — RAG pipeline (retrieval + generation)
+- [x] `services/pdf_service.py` — End-to-end PDF processing orchestration
+- [x] `services/embedding_service.py` — Embedding service layer
+- [x] `services/citation_service.py` — Citation mapping logic
+- [x] `services/rag_service.py` — RAG pipeline (retrieval + generation)
 
 ### Phase 5: API Routes
 - [ ] `api/upload.py` — Upload endpoint
