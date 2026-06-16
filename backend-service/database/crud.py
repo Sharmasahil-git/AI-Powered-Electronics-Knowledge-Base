@@ -105,8 +105,8 @@ def create_chat_entry(db: Session, question: str, answer: str, sources: str = No
 
 
 # Fetches past Q&A conversations, newest first.
-# 'limit' controls how many entries to return (default: last 50).
-def get_chat_history(db: Session, limit: int = 50) -> List[ChatHistory]:
+# 'skip' and 'limit' control pagination (default: last 50).
+def get_chat_history(db: Session, skip: int = 0, limit: int = 50) -> List[ChatHistory]:
     return db.query(ChatHistory).order_by(
         ChatHistory.timestamp.desc()
-    ).limit(limit).all()
+    ).offset(skip).limit(limit).all()

@@ -4,6 +4,7 @@ from pathlib import Path
 import uvicorn
 from database.connection import init_db
 from database import models
+from api import upload, documents, chat
 
 # ===================== APP INITIALIZATION =====================
 # Creates the FastAPI application instance with project metadata.
@@ -46,6 +47,12 @@ async def startup_event():
     PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
     init_db()
 
+
+# ===================== API ROUTERS =====================
+# This plugs in the API routes we built in Phase 5 so the server can hear them.
+app.include_router(upload.router, prefix="/api", tags=["Upload"])
+app.include_router(documents.router, prefix="/api/documents", tags=["Documents"])
+app.include_router(chat.router, prefix="/api/chat", tags=["Chat"])
 
 # ===================== HEALTH CHECK ENDPOINT =====================
 # A simple GET route at /health to verify the server is running.

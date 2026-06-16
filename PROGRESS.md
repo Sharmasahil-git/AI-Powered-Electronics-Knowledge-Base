@@ -26,9 +26,9 @@
 - [x] `services/rag_service.py` — RAG pipeline (retrieval + generation)
 
 ### Phase 5: API Routes
-- [ ] `api/upload.py` — Upload endpoint
-- [ ] `api/documents.py` — Document management endpoints
-- [ ] `api/chat.py` — Chat/QA endpoint
+- [x] `api/upload.py` — Upload endpoint
+- [x] `api/documents.py` — Document management endpoints
+- [x] `api/chat.py` — Chat/QA endpoint
 
 ## Installed Packages
 - fastapi 0.136.3

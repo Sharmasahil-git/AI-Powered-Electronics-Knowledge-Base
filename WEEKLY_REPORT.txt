@@ -79,3 +79,20 @@ Session 4 (Night):
 Packages installed today: langchain-text-splitters, sentence-transformers, faiss-cpu
 Files completed today: text_chunker.py, embedding_generator.py, faiss_manager.py
 Total files completed: 11 / 18
+
+
+--- Day 4: 16 June 2026 (Tuesday) ---
+
+Session 5 & 6 (Services and API Routes):
+- Built services/pdf_service.py — Factory orchestrator that manages extraction, chunking, and database saving in one flow.
+- Built services/embedding_service.py — AI pipeline orchestrator that converts text chunks to vectors and stores them in FAISS.
+- Built services/citation_service.py — Maps raw FAISS IDs back to human-readable document snippets for transparent AI citations.
+- Built services/rag_service.py — The core AI brain (Retrieval-Augmented Generation). Converts questions to vectors, queries FAISS, and uses the LLM API to generate accurate answers.
+- Built api/upload.py — REST endpoint to receive PDFs and trigger background processing.
+- Built api/documents.py — REST endpoints for the frontend to list, view, and delete uploaded PDFs.
+- Built api/chat.py — REST endpoints for the frontend to submit questions and retrieve chat history.
+- Integrated all routes into main.py. The entire Python backend is now 100% complete!
+
+Packages installed today: google-genai (Not installed! Kept backend completely free of extra SDKs by using standard Python requests for the AI API).
+Files completed today: pdf_service.py, embedding_service.py, citation_service.py, rag_service.py, upload.py, documents.py, chat.py
+Total files completed: 18 / 18
