@@ -1,0 +1,51 @@
+=========================================================
+      PROPOSED CHANGES: THE GEMINI EMBEDDING REWRITE
+=========================================================
+
+1. THE PROBLEM WE ARE SOLVING:
+---------------------------------------------------------
+Render's Free Tier has a very strict 512MB RAM (Memory) limit.
+Currently, our backend uses a library called `sentence-transformers` 
+to convert English text into Math Vectors locally on the server.
+Loading that AI model consumes about 450MB of RAM by itself! 
+This leaves almost zero memory for FastAPI, PyMuPDF, and Ghostscript.
+When you upload a PDF on Render, the server is highly likely to crash 
+with an "Out of Memory" (OOM) error and forcefully reboot.
+
+2. THE SOLUTION:
+---------------------------------------------------------
+We will completely delete the `sentence-transformers` local AI model.
+Instead, we will use your existing GEMINI_API_KEY to send the text to 
+Google's supercomputers using the free Gemini Embedding API 
+(model: `text-embedding-004`). Google will do the heavy math and 
+return the vectors to us over the internet.
+
+3. THE BENEFITS:
+---------------------------------------------------------
+* Immunity to Crashes: Your server's RAM usage will drop from ~450MB 
+  to almost 0MB. It will run flawlessly on the Free Tier forever.
+* Instant Boot Times: Render will no longer waste time downloading the 
+  heavy AI model from HuggingFace every time it wakes up.
+* Smarter AI: Gemini's math vectors (768 dimensions) capture the 
+  meaning of electronics text much better than the old, tiny model.
+* Unlimited Usage: By bundling the text into "Batches", uploading an 
+  entire datasheet will only cost 1 API request. You can safely upload 
+  up to 1,500 PDFs a day for free.
+
+4. THE EXACT CODE CHANGES REQUIRED:
+---------------------------------------------------------
+[Change 1]: `embeddings/embedding_generator.py`
+We will delete the sentence-transformers code and write a simple web 
+request that sends the text chunks to the Gemini API in batches.
+
+[Change 2]: `vector_db/faiss_manager.py`
+Because Gemini vectors are 768 numbers long (instead of 384), we must 
+change one line: `self.dimension = 768`.
+
+[Change 3]: `requirements.txt`
+Delete the `sentence-transformers` line so Render doesn't install it.
+
+[Change 4]: `storage/` folder (Manual Step)
+Delete the old `index.faiss` and `electronics_kb.db` files. Because the 
+new vectors are a different size, the old databases won't fit them. 
+When you boot the server, it will cleanly generate fresh ones!

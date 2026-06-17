@@ -5,9 +5,9 @@ from typing import List, Tuple
 
 class FAISSManager:
 
-    def __init__(self, index_path: str = "storage/faiss_index.bin", vector_dim: int = 384):
+    def __init__(self, index_path: str = "storage/faiss_index.bin", vector_dim: int = 3072):
         # ===================== INITIALIZE FAISS =====================
-        # vector_dim: 384 because we use all-MiniLM-L6-v2 which outputs 384 numbers per chunk.
+        # vector_dim: 3072 because Google's gemini-embedding-001 model generates 3072 numbers per chunk.
         # index_path: Where we save the FAISS database on the hard drive.
         self.index_path = index_path
         self.vector_dim = vector_dim
