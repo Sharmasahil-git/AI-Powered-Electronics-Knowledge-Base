@@ -23,6 +23,7 @@ class CitationSource(BaseModel):
     page_number: int
     chunk_text: str
     relevance_score: float
+    image_url: Optional[str] = None
 
 
 # ===================== CHAT RESPONSE =====================

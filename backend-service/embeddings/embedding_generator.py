@@ -1,4 +1,5 @@
 import os
+import time
 import requests
 from typing import List
 
@@ -47,7 +48,7 @@ class EmbeddingGenerator:
         url = f"https://generativelanguage.googleapis.com/v1beta/{self.model_name}:batchEmbedContents?key={self.api_key}"
         
         all_embeddings = []
-        batch_size = 100  # Gemini's maximum batch size
+        batch_size = 50  # Lowered from 100 to 50 to avoid TPM (Tokens Per Minute) limit
         
         print(f"Fetching {len(texts)} embeddings from Gemini API in batches of {batch_size}...")
         
@@ -65,6 +66,7 @@ class EmbeddingGenerator:
                 
             payload = {"requests": requests_list}
             
+            print(f"Sending batch {i // batch_size + 1}... (Added 15s delay to prevent hitting 30k TPM limit)")
             response = requests.post(url, headers={'Content-Type': 'application/json'}, json=payload)
             
             if response.status_code == 200:
@@ -73,5 +75,9 @@ class EmbeddingGenerator:
                     all_embeddings.append(emb['values'])
             else:
                 raise Exception(f"Gemini API Batch Error: {response.text}")
+                
+            # Add a delay between batches to respect the 30k Tokens-Per-Minute free tier limit
+            if i + batch_size < len(texts):
+                time.sleep(15)
                 
         return all_embeddings

@@ -18,8 +18,8 @@ class RAGService:
         self.faiss_manager = FAISSManager()
         # The Gemini API Key must be set in your environment variables for this to work
         self.api_key = os.getenv("GEMINI_API_KEY", "").strip()
-        # The exact web address for the free Gemini 2.5 Flash model
-        self.api_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={self.api_key}"
+        # The exact web address for the high-reasoning Gemma 4 31B model
+        self.api_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemma-4-31b-it:generateContent?key={self.api_key}"
 
     # ===================== ANSWER QUESTION =====================
     def answer_question(self, question: str, db: Session, document_ids: Optional[List[int]] = None) -> ChatResponse:
@@ -49,8 +49,8 @@ class RAGService:
             for cite in citations
         ])
 
-        # 6. Ask Gemini to read the context and answer the question
-        answer = self._ask_gemini(question, context_text)
+        # 6. Ask Gemini to read the context (and images) to answer the question
+        answer = self._ask_gemini(question, context_text, citations)
 
         # 7. Save the conversation into the SQLite database for history
         # We save the citations as a JSON string so SQLite can store it safely
@@ -70,7 +70,7 @@ class RAGService:
 
     # ===================== COMMUNICATE WITH GEMINI API =====================
     # Uses standard Python requests, meaning ZERO external SDK installations are required!
-    def _ask_gemini(self, question: str, context: str) -> str:
+    def _ask_gemini(self, question: str, context: str, citations: List) -> str:
         if not self.api_key:
             return "ERROR: Gemini API Key is missing. Please set the GEMINI_API_KEY environment variable."
 
@@ -78,6 +78,7 @@ class RAGService:
         prompt = f"""
 You are an expert Electronics Engineer AI assistant.
 Read the following extracted information from datasheets carefully.
+If diagrams or images are provided, examine them closely.
 Then, answer the user's question based strictly on this information.
 If the information does not contain the answer, say "I don't have enough information to answer that based on the provided documents."
 
@@ -87,10 +88,34 @@ DATASHEET INFORMATION:
 USER QUESTION:
 {question}
 """
+        import base64
+        multimodal_parts = [{"text": prompt}]
+        
+        # If any of the retrieved citations are images, we attach them physically to the request!
+        for cite in citations:
+            if cite.image_url:
+                # Map the web URL back to the physical hard drive path
+                image_path = "storage" + cite.image_url
+                try:
+                    with open(image_path, "rb") as image_file:
+                        encoded_string = base64.b64encode(image_file.read()).decode("utf-8")
+                        mime_type = "image/png"
+                        if image_path.lower().endswith(".jpg") or image_path.lower().endswith(".jpeg"):
+                            mime_type = "image/jpeg"
+                        
+                        multimodal_parts.append({
+                            "inline_data": {
+                                "mime_type": mime_type,
+                                "data": encoded_string
+                            }
+                        })
+                except Exception as e:
+                    print(f"Error loading image for multimodal chat: {e}")
+
         # This is the exact JSON format Google's servers require
         payload = {
             "contents": [{
-                "parts": [{"text": prompt}]
+                "parts": multimodal_parts
             }]
         }
         

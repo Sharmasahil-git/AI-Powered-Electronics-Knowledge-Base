@@ -70,7 +70,8 @@ def create_chunks(db: Session, document_id: int, chunks_data: List[dict]) -> Lis
             chunk_index=chunk["chunk_index"],
             page_number=chunk["page_number"],
             chunk_type=chunk.get("chunk_type", "text"),
-            embedding_id=chunk.get("embedding_id")
+            embedding_id=chunk.get("embedding_id"),
+            image_id=chunk.get("image_id")
         )
         chunks.append(db_chunk)
     db.add_all(chunks)
@@ -78,6 +79,28 @@ def create_chunks(db: Session, document_id: int, chunks_data: List[dict]) -> Lis
     for chunk in chunks:
         db.refresh(chunk)
     return chunks
+
+# ===================== DOCUMENT IMAGE CRUD =====================
+
+def create_image(db: Session, document_id: int, page_number: int, image_path: str, image_filename: str, width: int = None, height: int = None, format: str = None):
+    from database.models import DocumentImage
+    image = DocumentImage(
+        document_id=document_id,
+        page_number=page_number,
+        image_path=image_path,
+        image_filename=image_filename,
+        width=width,
+        height=height,
+        format=format
+    )
+    db.add(image)
+    db.commit()
+    db.refresh(image)
+    return image
+
+def get_image(db: Session, image_id: int):
+    from database.models import DocumentImage
+    return db.query(DocumentImage).filter(DocumentImage.id == image_id).first()
 
 
 # Fetches all chunks that belong to a specific document.

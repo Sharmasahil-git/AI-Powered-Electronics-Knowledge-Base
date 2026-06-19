@@ -35,14 +35,23 @@ class CitationService:
                     if document_ids is not None and document.id not in document_ids:
                         continue
 
-                    # 4. Package it perfectly into the Pydantic schema we designed on Day 1
+                    # 4. If this chunk is describing an image, fetch its URL so the frontend can display it
+                    image_url = None
+                    if chunk.image_id:
+                        from database import crud
+                        image_record = crud.get_image(db, chunk.image_id)
+                        if image_record:
+                            image_url = f"/images/doc_{document.id}/{image_record.image_filename}"
+
+                    # 5. Package it perfectly into the Pydantic schema we designed on Day 1
                     citation = CitationSource(
                         document_id=document.id,
                         document_name=document.filename,
                         page_number=chunk.page_number,
                         chunk_text=chunk.chunk_text,
                         # Note: In FAISS (L2 distance), a LOWER score means it is MORE relevant
-                        relevance_score=distance 
+                        relevance_score=distance,
+                        image_url=image_url
                     )
                     citations.append(citation)
                     

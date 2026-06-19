@@ -38,10 +38,30 @@ class DocumentChunk(Base):
     page_number = Column(Integer, nullable=False)
     chunk_type = Column(String(50), default="text")
     embedding_id = Column(String(255), nullable=True)
+    image_id = Column(Integer, ForeignKey("document_images.id"), nullable=True)
 
     # ---- Relationship ----
     # Links this chunk back to its parent document.
     document = relationship("Document", back_populates="chunks")
+    image = relationship("DocumentImage")
+
+
+# ===================== DOCUMENT IMAGE TABLE =====================
+# Stores metadata about extracted images for multimodal RAG.
+class DocumentImage(Base):
+    __tablename__ = "document_images"
+
+    id = Column(Integer, primary_key=True, index=True)
+    document_id = Column(Integer, ForeignKey("documents.id"), nullable=False)
+    page_number = Column(Integer, nullable=False)
+    image_path = Column(String(500), nullable=False)
+    image_filename = Column(String(255), nullable=False)
+    width = Column(Integer, nullable=True)
+    height = Column(Integer, nullable=True)
+    format = Column(String(50), nullable=True)
+
+    # ---- Relationship ----
+    document = relationship("Document")
 
 
 # ===================== CHAT HISTORY TABLE =====================

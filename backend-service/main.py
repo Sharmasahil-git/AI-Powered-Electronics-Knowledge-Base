@@ -20,6 +20,8 @@ app = FastAPI(
     version="1.0.0"
 )
 
+from fastapi.staticfiles import StaticFiles
+
 # ===================== CORS MIDDLEWARE =====================
 # CORS (Cross-Origin Resource Sharing) allows your frontend
 # (running on a different port/domain) to communicate with this backend.
@@ -31,6 +33,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ===================== STATIC FILES =====================
+# Serve images directly so the frontend can display them using URL paths
+import os
+os.makedirs("storage/images", exist_ok=True)
+app.mount("/images", StaticFiles(directory="storage/images"), name="images")
 
 # ===================== DIRECTORY PATHS =====================
 # Defines absolute paths for file storage using pathlib.
@@ -50,6 +58,7 @@ PROCESSED_DIR = STORAGE_DIR / "processed"
 async def startup_event():
     UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
     PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
+    (STORAGE_DIR / "images").mkdir(parents=True, exist_ok=True)
     init_db()
 
 

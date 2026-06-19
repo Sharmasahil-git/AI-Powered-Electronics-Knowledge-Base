@@ -4,6 +4,7 @@ from database import crud
 from parsers.pdf_parser import PDFParser
 from parsers.table_parser import TableParser
 from chunking.text_chunker import TextChunker
+from services.vision_service import VisionService
 
 
 class PDFService:
@@ -13,6 +14,7 @@ class PDFService:
         self.pdf_parser = PDFParser()
         self.table_parser = TableParser()
         self.text_chunker = TextChunker()
+        self.vision_service = VisionService()
 
     # ===================== END-TO-END PDF PROCESSING =====================
     # This is the main orchestrator function. It takes an uploaded PDF file,
@@ -45,11 +47,45 @@ class PDFService:
             print("Chunking document text...")
             chunks_data = self.text_chunker.chunk_document(pages_data)
 
-            # 6. Save all the chunks into the SQLite database
+            # 6. Extract Images and Describe them with Vision AI
+            images_dir = f"storage/images/doc_{document_id}"
+            print(f"Extracting images to: {images_dir}")
+            images_data = self.pdf_parser.extract_images(file_path, images_dir)
+            
+            # For each extracted image, save it to the DB, get a Gemini description, and add it as a chunk
+            for img_info in images_data:
+                # Save image record to DB
+                db_image = crud.create_image(
+                    db=db,
+                    document_id=document_id,
+                    page_number=img_info["page_number"],
+                    image_path=img_info["image_path"],
+                    image_filename=img_info["image_filename"],
+                    width=img_info["width"],
+                    height=img_info["height"],
+                    format=img_info["format"]
+                )
+                
+                # Get text description from Gemini Vision
+                description = self.vision_service.describe_image(img_info["image_path"])
+                
+                # Add to chunks_data so it gets embedded
+                # We prefix it so the AI knows it's an image description
+                image_chunk_text = f"[IMAGE DESCRIPTION] The following describes a diagram on Page {img_info['page_number']}:\n{description}"
+                
+                chunks_data.append({
+                    "chunk_text": image_chunk_text,
+                    "chunk_index": len(chunks_data),
+                    "page_number": img_info["page_number"],
+                    "chunk_type": "image",
+                    "image_id": db_image.id
+                })
+
+            # 7. Save all the chunks into the SQLite database
             print(f"Saving {len(chunks_data)} chunks to database...")
             crud.create_chunks(db, document_id=document_id, chunks_data=chunks_data)
 
-            # 7. Mark as "parsed" (Next step will be generating embeddings)
+            # 8. Mark as "parsed" (Next step will be generating embeddings)
             crud.update_document_status(db, document_id=document_id, status="parsed")
             print("PDF Processing complete!")
             
