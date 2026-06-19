@@ -311,3 +311,4 @@ Go to this folder in your File Explorer:
 `C:\Users\<Your-Username>\.cache\huggingface\hub\`
 
 You can safely delete the `huggingface` folder inside `.cache` when you are completely done with the project!
+SAHIL SHARMA
