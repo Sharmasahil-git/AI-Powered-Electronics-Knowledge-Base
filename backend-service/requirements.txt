@@ -9,3 +9,4 @@ pymupdf
 camelot-py[cv]
 opencv-python-headless
 faiss-cpu
+websockets

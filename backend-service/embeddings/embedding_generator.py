@@ -7,19 +7,65 @@ class EmbeddingGenerator:
 
     def __init__(self):
         # ===================== INITIALIZE GEMINI API =====================
-        # We no longer load a massive local model. We just need the API Key!
-        self.api_key = os.getenv("GEMINI_API_KEY", "").strip()
+        # Support multiple keys for load balancing (Key Rotation)
+        keys_env = [
+            os.getenv("GEMINI_API_KEY", "").strip(),
+            os.getenv("GEMINI_API_KEY_2", "").strip(),
+            os.getenv("GEMINI_API_KEY_3", "").strip()
+        ]
+        self.api_keys = [k for k in keys_env if k]
+        self.current_key_idx = 0
         self.model_name = "models/gemini-embedding-001"
+
+    # ===================== AUTOMATIC RETRY LOGIC =====================
+    # ===================== AUTOMATIC RETRY & ROTATION LOGIC =====================
+    def _make_request_with_retry(self, url_template: str, payload: dict, max_retries=10) -> dict:
+        for attempt in range(max_retries):
+            try:
+                current_key = self.api_keys[self.current_key_idx] if self.api_keys else ""
+                url = url_template.format(api_key=current_key)
+                
+                response = requests.post(url, headers={'Content-Type': 'application/json'}, json=payload)
+                
+                if response.status_code == 200:
+                    return response.json()
+                
+                if response.status_code == 429:
+                    # If we have multiple keys, switch to the next one instantly!
+                    if len(self.api_keys) > 1:
+                        self.current_key_idx = (self.current_key_idx + 1) % len(self.api_keys)
+                        print(f"API Rate Limit hit (429). Rotating to API Key {self.current_key_idx + 1}...")
+                        time.sleep(1) # Small pause to prevent hammering if all keys are exhausted
+                        continue
+                    else:
+                        wait_time = 10 * (attempt + 1)
+                        print(f"API Rate Limit hit (429). Waiting {wait_time}s... (Attempt {attempt+1}/{max_retries})")
+                        time.sleep(wait_time)
+                        continue
+                    
+                if response.status_code >= 500:
+                    print(f"Google Server Error ({response.status_code}). Retrying in 5s...")
+                    time.sleep(5)
+                    continue
+                    
+                raise Exception(f"Gemini API Error: {response.text}")
+
+            except requests.exceptions.RequestException as e:
+                print(f"Network error: {str(e)}. Retrying in 10s...")
+                time.sleep(10)
+                
+        raise Exception("Max retries exceeded. The API is consistently blocking the request.")
+
 
     # ===================== GENERATE SINGLE EMBEDDING =====================
     def generate_embedding(self, text: str) -> List[float]:
         if not text or not text.strip():
             return []
             
-        if not self.api_key:
+        if not self.api_keys:
             raise ValueError("GEMINI_API_KEY is not set.")
             
-        url = f"https://generativelanguage.googleapis.com/v1beta/{self.model_name}:embedContent?key={self.api_key}"
+        url_template = f"https://generativelanguage.googleapis.com/v1beta/{self.model_name}:embedContent?key={{api_key}}"
         payload = {
             "model": self.model_name,
             "content": {
@@ -28,27 +74,22 @@ class EmbeddingGenerator:
         }
         
         print("Fetching single embedding from Gemini API...")
-        response = requests.post(url, headers={'Content-Type': 'application/json'}, json=payload)
-        
-        if response.status_code == 200:
-            return response.json()['embedding']['values']
-        else:
-            raise Exception(f"Gemini API Error: {response.text}")
+        data = self._make_request_with_retry(url_template, payload)
+        return data['embedding']['values']
+
 
     # ===================== GENERATE BATCH EMBEDDINGS =====================
-    # This bundles up to 100 paragraphs at a time into a single API request!
-    # This guarantees we will never hit the 15-requests-per-minute limit.
     def generate_embeddings(self, texts: List[str]) -> List[List[float]]:
         if not texts:
             return []
             
-        if not self.api_key:
+        if not self.api_keys:
             raise ValueError("GEMINI_API_KEY is not set.")
             
-        url = f"https://generativelanguage.googleapis.com/v1beta/{self.model_name}:batchEmbedContents?key={self.api_key}"
+        url_template = f"https://generativelanguage.googleapis.com/v1beta/{self.model_name}:batchEmbedContents?key={{api_key}}"
         
         all_embeddings = []
-        batch_size = 50  # Lowered from 100 to 50 to avoid TPM (Tokens Per Minute) limit
+        batch_size = 50 
         
         print(f"Fetching {len(texts)} embeddings from Gemini API in batches of {batch_size}...")
         
@@ -66,18 +107,13 @@ class EmbeddingGenerator:
                 
             payload = {"requests": requests_list}
             
-            print(f"Sending batch {i // batch_size + 1}... (Added 15s delay to prevent hitting 30k TPM limit)")
-            response = requests.post(url, headers={'Content-Type': 'application/json'}, json=payload)
+            print(f"Sending batch {i // batch_size + 1}...")
+            data = self._make_request_with_retry(url_template, payload)
             
-            if response.status_code == 200:
-                data = response.json()
-                for emb in data['embeddings']:
-                    all_embeddings.append(emb['values'])
-            else:
-                raise Exception(f"Gemini API Batch Error: {response.text}")
+            for emb in data['embeddings']:
+                all_embeddings.append(emb['values'])
                 
-            # Add a delay between batches to respect the 30k Tokens-Per-Minute free tier limit
-            if i + batch_size < len(texts):
-                time.sleep(15)
+            # Since we now have key rotation, we can run at maximum speed!
+            # The backend will automatically switch keys or pause if it hits the limit.
                 
         return all_embeddings

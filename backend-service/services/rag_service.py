@@ -16,10 +16,15 @@ class RAGService:
         self.embedding_generator = EmbeddingGenerator()
         # We need FAISS to search for the closest matching chunks
         self.faiss_manager = FAISSManager()
-        # The Gemini API Key must be set in your environment variables for this to work
-        self.api_key = os.getenv("GEMINI_API_KEY", "").strip()
-        # The exact web address for the high-reasoning Gemma 4 31B model
-        self.api_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemma-4-31b-it:generateContent?key={self.api_key}"
+        
+        # Support multiple keys for load balancing (Key Rotation)
+        keys_env = [
+            os.getenv("GEMINI_API_KEY", "").strip(),
+            os.getenv("GEMINI_API_KEY_2", "").strip(),
+            os.getenv("GEMINI_API_KEY_3", "").strip()
+        ]
+        self.api_keys = [k for k in keys_env if k]
+        self.current_key_idx = 0
 
     # ===================== ANSWER QUESTION =====================
     def answer_question(self, question: str, db: Session, document_ids: Optional[List[int]] = None) -> ChatResponse:
@@ -27,9 +32,9 @@ class RAGService:
         print(f"Embedding question: '{question}'")
         question_vector = self.embedding_generator.generate_embedding(question)
 
-        # 2. Search FAISS for the top 20 most relevant chunks (so we have enough to filter)
+        # 2. Search FAISS for the top 40 most relevant chunks (Double the context window!)
         print("Searching database for relevant information...")
-        search_results = self.faiss_manager.search(query_embedding=question_vector, k=20)
+        search_results = self.faiss_manager.search(query_embedding=question_vector, k=40)
 
         # 3. Use the CitationService to convert those raw IDs into readable citations
         #    and filter them down to just the 5 best that match the document_ids
@@ -69,9 +74,46 @@ class RAGService:
         )
 
     # ===================== COMMUNICATE WITH GEMINI API =====================
-    # Uses standard Python requests, meaning ZERO external SDK installations are required!
+    def _make_request_with_retry(self, payload: dict, max_retries=10) -> dict:
+        import time
+        for attempt in range(max_retries):
+            try:
+                current_key = self.api_keys[self.current_key_idx] if self.api_keys else ""
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/gemma-4-31b-it:generateContent?key={current_key}"
+                
+                response = requests.post(url, headers={'Content-Type': 'application/json'}, json=payload)
+                
+                if response.status_code == 200:
+                    return response.json()
+                
+                if response.status_code == 429:
+                    # If we have multiple keys, switch to the next one instantly!
+                    if len(self.api_keys) > 1:
+                        self.current_key_idx = (self.current_key_idx + 1) % len(self.api_keys)
+                        print(f"Chat API Rate Limit hit (429). Rotating to API Key {self.current_key_idx + 1}...")
+                        time.sleep(1)
+                        continue
+                    else:
+                        wait_time = 10 * (attempt + 1)
+                        print(f"Chat API Rate Limit hit (429). Waiting {wait_time}s... (Attempt {attempt+1}/{max_retries})")
+                        time.sleep(wait_time)
+                        continue
+                        
+                if response.status_code >= 500:
+                    print(f"Google Server Error ({response.status_code}). Retrying in 5s...")
+                    time.sleep(5)
+                    continue
+                    
+                raise Exception(f"API Error {response.status_code}: {response.text}")
+
+            except requests.exceptions.RequestException as e:
+                print(f"Network error in Chat API: {str(e)}. Retrying in 10s...")
+                time.sleep(10)
+                
+        raise Exception("Max retries exceeded for Chat API.")
+
     def _ask_gemini(self, question: str, context: str, citations: List) -> str:
-        if not self.api_key:
+        if not self.api_keys:
             return "ERROR: Gemini API Key is missing. Please set the GEMINI_API_KEY environment variable."
 
         # We construct a strict prompt telling the AI to ONLY use our provided context
@@ -81,6 +123,8 @@ Read the following extracted information from datasheets carefully.
 If diagrams or images are provided, examine them closely.
 Then, answer the user's question based strictly on this information.
 If the information does not contain the answer, say "I don't have enough information to answer that based on the provided documents."
+
+IMPORTANT INSTRUCTION: DO NOT output your internal reasoning, chain of thought, or scanning process. Output ONLY the final answer to the user's question directly, clearly, and concisely.
 
 DATASHEET INFORMATION:
 {context}
@@ -123,16 +167,11 @@ USER QUESTION:
 
         try:
             print("Sending context to Gemini API...")
-            response = requests.post(self.api_url, headers=headers, json=payload)
+            data = self._make_request_with_retry(payload)
             
-            # If the request was successful
-            if response.status_code == 200:
-                data = response.json()
-                # Extract the text from the complex JSON response
-                answer = data['candidates'][0]['content']['parts'][0]['text']
-                return answer
-            else:
-                return f"API Error: {response.status_code} - {response.text}"
-                
+            # Extract the text from the complex JSON response
+            answer = data['candidates'][0]['content']['parts'][0]['text']
+            return answer
+            
         except Exception as e:
             return f"Error communicating with Gemini API: {str(e)}"

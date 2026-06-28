@@ -10,9 +10,9 @@ class EmbeddingService:
         self.embedding_generator = EmbeddingGenerator()
         self.faiss_manager = FAISSManager()
 
-    # ===================== PROCESS EMBEDDINGS =====================
-    # Takes a document that has been "parsed" into chunks, generates vectors
-    # for all its chunks, and saves them into the FAISS database.
+    # ===================== EMBED ALL CHUNKS FOR A DOCUMENT =====================
+    # Used in Phase 1: Takes all text chunks for a document, generates vectors
+    # for all of them in batch, and saves them into the FAISS database.
     def generate_embeddings_for_document(self, document_id: int, db: Session) -> bool:
         try:
             # 1. Update status so the frontend shows we are in the embedding phase
@@ -49,4 +49,33 @@ class EmbeddingService:
             # Catch errors to prevent the API from crashing and mark the doc as failed
             print(f"Error generating embeddings for document {document_id}: {str(e)}")
             crud.update_document_status(db, document_id=document_id, status="failed")
+            return False
+
+    # ===================== EMBED A SINGLE CHUNK =====================
+    # Used in Phase 2: When a new image chunk is created one-by-one in the 
+    # background, we embed it individually and add it to the existing FAISS 
+    # index. This way, the image becomes searchable the moment it's processed,
+    # without waiting for all other images to finish.
+    def embed_single_chunk(self, chunk_id: int, chunk_text: str) -> bool:
+        try:
+            print(f"[Phase 2] Embedding single image chunk (ID: {chunk_id})...")
+
+            # Generate embedding for this one chunk
+            embedding = self.embedding_generator.generate_embedding(chunk_text)
+
+            if not embedding:
+                print(f"[Phase 2] Failed to generate embedding for chunk {chunk_id}")
+                return False
+
+            # Add it to the FAISS index immediately
+            self.faiss_manager.add_embeddings(
+                embeddings=[embedding],
+                chunk_ids=[chunk_id]
+            )
+
+            print(f"[Phase 2] Chunk {chunk_id} embedded and searchable!")
+            return True
+
+        except Exception as e:
+            print(f"[Phase 2] Error embedding chunk {chunk_id}: {str(e)}")
             return False
