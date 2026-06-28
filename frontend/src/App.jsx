@@ -1,9 +1,11 @@
+import Navbar from "./components/Navbar";
+import Home from "./pages/Home";
 function App() {
   return (
-    <div>
-      <h1>DataSheetIQ</h1>
-      <p>AI-Powered Electronics Knowledge Base</p>
-    </div>
+    <>
+      <Navbar />
+      <Home />
+    </>
   );
 }
 
