@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import "../styles/Navbar.css";
 
 function Navbar() {
@@ -6,9 +7,18 @@ function Navbar() {
       <h2 className="logo">DataSheetIQ</h2>
 
       <ul className="nav-links">
-        <li>Home</li>
-        <li>Upload</li>
-        <li>Ask AI</li>
+        <li>
+          <Link to="/">Home</Link>
+        </li>
+
+        <li>
+          <Link to="/upload">Upload</Link>
+        </li>
+
+        <li>
+          <Link to="/chat">Ask AI</Link>
+        </li>
+
         <li>About</li>
       </ul>
     </nav>
