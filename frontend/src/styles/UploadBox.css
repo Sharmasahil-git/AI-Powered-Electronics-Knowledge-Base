@@ -1,0 +1,37 @@
+.upload-box {
+  width: 420px;
+  margin: 30px auto;
+  padding: 30px;
+  background-color: #1f2937;
+  border-radius: 12px;
+  text-align: center;
+  color: white;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+.upload-box h2 {
+  margin-bottom: 10px;
+}
+
+.upload-box p {
+  margin-bottom: 20px;
+  color: #d1d5db;
+}
+
+.upload-box input {
+  margin-bottom: 20px;
+}
+
+.upload-box button {
+  background-color: #2563eb;
+  color: white;
+  border: none;
+  padding: 10px 22px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.upload-box button:hover {
+  background-color: #1d4ed8;
+}
