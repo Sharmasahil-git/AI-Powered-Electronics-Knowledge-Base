@@ -19,7 +19,9 @@ function Navbar() {
           <Link to="/chat">Ask AI</Link>
         </li>
 
-        <li>About</li>
+        <li>
+          <Link to="/about">About</Link>
+        </li>
       </ul>
     </nav>
   );

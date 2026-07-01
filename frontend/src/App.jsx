@@ -6,6 +6,7 @@ import Footer from "./components/Footer";
 import Home from "./pages/Home";
 import Upload from "./pages/Upload";
 import Chat from "./pages/Chat";
+import About from "./pages/About";
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/upload" element={<Upload />} />
         <Route path="/chat" element={<Chat />} />
+        <Route path="/about" element={<About />} />
       </Routes>
 
       <Footer />
@@ -24,3 +26,4 @@ function App() {
 }
 
 export default App;
+

@@ -1,0 +1,28 @@
+.question-box {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin: 20px 0;
+}
+
+.question-box input {
+  width: 350px;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  font-size: 16px;
+}
+
+.question-box button {
+  background-color: #2563eb;
+  color: white;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.question-box button:hover {
+  background-color: #1d4ed8;
+}
