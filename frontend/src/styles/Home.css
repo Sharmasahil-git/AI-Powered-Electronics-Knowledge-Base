@@ -32,12 +32,14 @@
   color: white;
   font-size: 16px;
   cursor: pointer;
-  transition: background-color 0.3s ease;
+  transition: all 0.3s ease;
 }
 
 .hero-buttons button:hover {
   background-color: #1d4ed8;
+  transform: scale(1.05);
 }
+
 .features {
   padding: 80px 20px;
   text-align: center;
@@ -62,12 +64,15 @@
   width: 300px;
   padding: 25px;
   border-radius: 12px;
+  border: 1px solid #e5e7eb;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-  transition: transform 0.3s ease;
+  cursor: pointer;
+  transition: all 0.3s ease;
 }
 
 .card:hover {
   transform: translateY(-8px);
+  box-shadow: 0 10px 25px rgba(37, 99, 235, 0.2);
 }
 
 .card h3 {
@@ -78,4 +83,24 @@
 .card p {
   color: #4b5563;
   line-height: 1.6;
+}
+@media (max-width: 768px) {
+
+  .hero h1 {
+    font-size: 34px;
+  }
+
+  .hero p {
+    font-size: 18px;
+  }
+
+  .hero-buttons {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .feature-cards {
+    flex-direction: column;
+    align-items: center;
+  }
 }
