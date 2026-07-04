@@ -54,6 +54,13 @@ def process_document_background(document_id: int, file_path: str, db: Session):
             "status": "failed",
             "message": f"Processing failed: {str(e)}"
         })
+        # Clean up local file on failure
+        import os
+        if os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+            except Exception as delete_err:
+                pass
         return
 
     # ==================== PHASE 2: IMAGES (SLOW, BACKGROUND) ====================
@@ -65,7 +72,7 @@ def process_document_background(document_id: int, file_path: str, db: Session):
             if progress.get("status") == "image_saved":
                 chunk_id = progress["chunk_id"]
                 chunk_text = progress["chunk_text"]
-                embedding_service.embed_single_chunk(chunk_id, chunk_text)
+                embedding_service.embed_single_chunk(chunk_id, chunk_text, db)
 
             # Stream the progress to the frontend via WebSocket
             _broadcast_sync(document_id, progress)
@@ -86,6 +93,15 @@ def process_document_background(document_id: int, file_path: str, db: Session):
             "status": "completed",
             "message": "Text is ready. Some images could not be processed."
         })
+        
+    finally:
+        # Clean up the local temporary PDF file to save disk space
+        import os
+        if os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+            except Exception as e:
+                print(f"Failed to delete local file {file_path}: {e}")
 
 
 # ===================== HELPER: SYNC-TO-ASYNC BRIDGE =====================
@@ -123,32 +139,52 @@ async def upload_pdf(
     if not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are allowed.")
 
-    # 2. Define exactly where we will save this file on the hard drive
+    # 2. Define exactly where we will save this file
+    from services.supabase_client import supabase
+    
+    file_bytes = file.file.read()
+    file_size = len(file_bytes)
+    file.file.seek(0) # Reset pointer just in case
+
+    # Always save a local copy for PyMuPDF to parse
     upload_dir = "storage/uploads"
-    # Ensure the folder exists
     os.makedirs(upload_dir, exist_ok=True) 
-    file_path = os.path.join(upload_dir, file.filename)
-
-    # 3. Save the physical file from the web request to the hard drive
+    local_file_path = os.path.join(upload_dir, file.filename)
+    
     try:
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+        with open(local_file_path, "wb") as buffer:
+            buffer.write(file_bytes)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Could not save file: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Could not save file locally: {str(e)}")
 
-    # 4. Get the file size for our metadata
-    file_size = os.path.getsize(file_path)
+    db_file_path = local_file_path
 
-    # 5. Create a record in our SQLite database so we can track its status
+    if supabase:
+        # Upload to Supabase Storage bucket named 'uploads'
+        try:
+            res = supabase.storage.from_("uploads").upload(
+                path=file.filename,
+                file=file_bytes,
+                file_options={"content-type": "application/pdf"}
+            )
+            # The file path is the public URL
+            db_file_path = supabase.storage.from_("uploads").get_public_url(file.filename)
+        except Exception as e:
+            # If upload fails (e.g., file already exists), try to get the public URL anyway
+            db_file_path = supabase.storage.from_("uploads").get_public_url(file.filename)
+
+    # 5. Create a record in our database so we can track its status
+    # We store the Supabase URL in the DB so the frontend can display it,
+    # but we pass the local file path to the background worker so it can parse it!
     document = crud.create_document(
         db=db,
         filename=file.filename,
-        file_path=file_path,
+        file_path=db_file_path,
         file_size=file_size
     )
 
-    # 6. Kick off the heavy processing in the background!
-    background_tasks.add_task(process_document_background, document.id, file_path, db)
+    # 6. Kick off the heavy processing in the background using the LOCAL path!
+    background_tasks.add_task(process_document_background, document.id, local_file_path, db)
 
     # 7. Immediately return a success message to the frontend so the user knows it worked
     return DocumentUploadResponse(

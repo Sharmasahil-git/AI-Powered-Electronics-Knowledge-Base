@@ -29,7 +29,7 @@ from fastapi.staticfiles import StaticFiles
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -38,7 +38,9 @@ app.add_middleware(
 # Serve images directly so the frontend can display them using URL paths
 import os
 os.makedirs("storage/images", exist_ok=True)
+os.makedirs("storage/uploads", exist_ok=True)
 app.mount("/images", StaticFiles(directory="storage/images"), name="images")
+app.mount("/uploads", StaticFiles(directory="storage/uploads"), name="uploads")
 
 # ===================== DIRECTORY PATHS =====================
 # Defines absolute paths for file storage using pathlib.

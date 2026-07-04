@@ -39,7 +39,7 @@ def ask_question(request: ChatRequest, db: Session = Depends(get_db)):
 # Used when the user opens the page and wants to see their past conversations
 @router.get("/history", response_model=ChatHistoryResponse)
 def get_chat_history(skip: int = 0, limit: int = 50, db: Session = Depends(get_db)):
-    # Fetch all past conversations from the SQLite database
+    # Fetch all past conversations from the PostgreSQL database
     history = crud.get_chat_history(db, skip=skip, limit=limit)
     
     # We count how many history items were returned

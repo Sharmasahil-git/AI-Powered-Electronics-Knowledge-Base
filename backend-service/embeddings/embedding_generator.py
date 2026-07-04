@@ -15,7 +15,7 @@ class EmbeddingGenerator:
         ]
         self.api_keys = [k for k in keys_env if k]
         self.current_key_idx = 0
-        self.model_name = "models/gemini-embedding-001"
+        self.model_name = "models/gemini-embedding-2"
 
     # ===================== AUTOMATIC RETRY LOGIC =====================
     # ===================== AUTOMATIC RETRY & ROTATION LOGIC =====================
@@ -70,12 +70,13 @@ class EmbeddingGenerator:
             "model": self.model_name,
             "content": {
                 "parts": [{"text": text}]
-            }
+            },
+            "outputDimensionality": 768
         }
         
         print("Fetching single embedding from Gemini API...")
         data = self._make_request_with_retry(url_template, payload)
-        return data['embedding']['values']
+        return data['embedding']['values'][:768]
 
 
     # ===================== GENERATE BATCH EMBEDDINGS =====================
@@ -102,7 +103,8 @@ class EmbeddingGenerator:
                     "model": self.model_name,
                     "content": {
                         "parts": [{"text": t}]
-                    }
+                    },
+                    "outputDimensionality": 768
                 })
                 
             payload = {"requests": requests_list}
@@ -111,7 +113,8 @@ class EmbeddingGenerator:
             data = self._make_request_with_retry(url_template, payload)
             
             for emb in data['embeddings']:
-                all_embeddings.append(emb['values'])
+                # Force slice to 768 just in case the API ignores the dimension parameter
+                all_embeddings.append(emb['values'][:768])
                 
             # Since we now have key rotation, we can run at maximum speed!
             # The backend will automatically switch keys or pause if it hits the limit.

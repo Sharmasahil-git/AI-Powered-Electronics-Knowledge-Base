@@ -19,8 +19,10 @@ env/
 # Storage (uploaded/processed files - too large for GitHub)
 storage/uploads/*
 storage/processed/*
+storage/images/*
 !storage/uploads/.gitkeep
 !storage/processed/.gitkeep
+!storage/images/.gitkeep
 
 # IDE
 .vscode/

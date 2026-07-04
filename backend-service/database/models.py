@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Float
 from sqlalchemy.orm import relationship
+from pgvector.sqlalchemy import Vector
 from datetime import datetime
 
 from database.connection import Base
@@ -21,8 +22,9 @@ class Document(Base):
 
     # ---- Relationship ----
     # Links this document to all its chunks.
-    # If a document is deleted, all its chunks are automatically deleted too (cascade).
+    # If a document is deleted, all its chunks and images are automatically deleted too (cascade).
     chunks = relationship("DocumentChunk", back_populates="document", cascade="all, delete-orphan")
+    images = relationship("DocumentImage", back_populates="document", cascade="all, delete-orphan")
 
 
 # ===================== DOCUMENT CHUNK TABLE =====================
@@ -37,7 +39,7 @@ class DocumentChunk(Base):
     chunk_index = Column(Integer, nullable=False)
     page_number = Column(Integer, nullable=False)
     chunk_type = Column(String(50), default="text")
-    embedding_id = Column(String(255), nullable=True)
+    embedding = Column(Vector(768), nullable=True) # Direct vector storage via pgvector
     image_id = Column(Integer, ForeignKey("document_images.id"), nullable=True)
 
     # ---- Relationship ----
@@ -61,7 +63,7 @@ class DocumentImage(Base):
     format = Column(String(50), nullable=True)
 
     # ---- Relationship ----
-    document = relationship("Document")
+    document = relationship("Document", back_populates="images")
 
 
 # ===================== CHAT HISTORY TABLE =====================

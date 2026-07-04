@@ -109,6 +109,19 @@ class PDFService:
                     "message": f"Learning diagram {processed_count} of {total_images}... (Page {img_info['page_number']})"
                 }
 
+                # Upload to Supabase Storage if configured
+                from services.supabase_client import supabase
+                if supabase:
+                    try:
+                        with open(img_info["image_path"], "rb") as f:
+                            supabase.storage.from_("images").upload(
+                                path=img_info["image_filename"],
+                                file=f.read(),
+                                file_options={"content-type": f"image/{img_info['format']}"}
+                            )
+                    except Exception as e:
+                        print(f"Supabase image upload error: {e}")
+
                 # Save image record to DB (Safe because this runs in the Main Thread!)
                 db_image = crud.create_image(
                     db=db,

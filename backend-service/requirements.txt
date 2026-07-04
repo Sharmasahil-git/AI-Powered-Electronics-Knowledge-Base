@@ -6,7 +6,7 @@ python-multipart
 python-dotenv
 requests
 pymupdf
-camelot-py[cv]
-opencv-python-headless
-faiss-cpu
 websockets
+supabase
+pgvector
+psycopg2-binary

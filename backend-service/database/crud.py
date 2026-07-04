@@ -70,7 +70,6 @@ def create_chunks(db: Session, document_id: int, chunks_data: List[dict]) -> Lis
             chunk_index=chunk["chunk_index"],
             page_number=chunk["page_number"],
             chunk_type=chunk.get("chunk_type", "text"),
-            embedding_id=chunk.get("embedding_id"),
             image_id=chunk.get("image_id")
         )
         chunks.append(db_chunk)
@@ -111,6 +110,11 @@ def get_chunks_by_document(db: Session, document_id: int) -> List[DocumentChunk]
     ).order_by(DocumentChunk.chunk_index).all()
 
 
+# Fetches a single chunk by its primary key ID.
+def get_chunk_by_id(db: Session, chunk_id: int) -> DocumentChunk:
+    return db.query(DocumentChunk).filter(DocumentChunk.id == chunk_id).first()
+
+
 # ===================== CHAT HISTORY CRUD =====================
 
 # Saves a Q&A entry — the user's question, the AI's answer, and which sources were cited.
@@ -125,6 +129,17 @@ def create_chat_entry(db: Session, question: str, answer: str, sources: str = No
     db.commit()
     db.refresh(chat)
     return chat
+
+# ===================== PGVECTOR SEARCH =====================
+def search_vectors(db: Session, query_embedding: List[float], document_ids: Optional[List[int]] = None, k: int = 40):
+    query = db.query(
+        DocumentChunk,
+        DocumentChunk.embedding.l2_distance(query_embedding).label('distance')
+    )
+    if document_ids:
+        query = query.filter(DocumentChunk.document_id.in_(document_ids))
+        
+    return query.order_by('distance').limit(k).all()
 
 
 # Fetches past Q&A conversations, newest first.

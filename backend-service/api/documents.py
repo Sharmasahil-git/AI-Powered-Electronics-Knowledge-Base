@@ -15,7 +15,7 @@ router = APIRouter()
 # Used by the frontend dashboard to show the user a list of all files they uploaded
 @router.get("/", response_model=DocumentListResponse)
 def get_documents(skip: int = 0, limit: int = 50, db: Session = Depends(get_db)):
-    # Fetch from SQLite database
+    # Fetch from PostgreSQL database
     documents = crud.get_all_documents(db, skip=skip, limit=limit)
     
     # The frontend needs to know the total count for pagination (e.g., showing Page 1 of 5)
@@ -48,19 +48,47 @@ def delete_document(document_id: int, db: Session = Depends(get_db)):
     document = crud.get_document(db, document_id=document_id)
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
+    
+    # 2. Clean up files from Supabase Storage (cloud) and local disk
+    from services.supabase_client import supabase
+    
+    # Delete the PDF from Supabase uploads bucket
+    if supabase:
+        try:
+            supabase.storage.from_("uploads").remove([document.filename])
+            print(f"Deleted PDF from Supabase: {document.filename}")
+        except Exception as e:
+            print(f"Warning: Could not delete PDF from Supabase: {e}")
         
-    # 2. Try to physically delete the PDF file from the hard drive (storage/uploads/)
+        # Delete associated images from Supabase images bucket
+        try:
+            from database.models import DocumentImage
+            images = db.query(DocumentImage).filter(DocumentImage.document_id == document_id).all()
+            if images:
+                image_filenames = [img.image_filename for img in images]
+                supabase.storage.from_("images").remove(image_filenames)
+                print(f"Deleted {len(image_filenames)} images from Supabase")
+        except Exception as e:
+            print(f"Warning: Could not delete images from Supabase: {e}")
+
+    # Delete local files if they exist (development only, ephemeral on Render)
     if os.path.exists(document.file_path):
         try:
             os.remove(document.file_path)
-            print(f"Deleted physical file: {document.file_path}")
-        except Exception as e:
-            # If the file is locked by Windows or OneDrive, we print a warning but keep going
-            print(f"Warning: Could not delete physical file {document.file_path}: {e}")
+        except Exception:
+            pass
+    
+    # Clean up local image directory
+    import shutil
+    local_images_dir = f"storage/images/doc_{document_id}"
+    if os.path.exists(local_images_dir):
+        try:
+            shutil.rmtree(local_images_dir)
+        except Exception:
+            pass
 
-    # 3. Delete from the SQLite database
-    # (Thanks to our database setup in models.py, deleting the document automatically
-    # deletes all the text chunks linked to it, keeping the database perfectly clean!)
+    # 3. Delete from PostgreSQL database
+    # Cascading deletes automatically remove all chunks and image records
     success = crud.delete_document(db, document_id=document_id)
     
     if not success:
