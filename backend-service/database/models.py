@@ -13,6 +13,7 @@ class Document(Base):
     __tablename__ = "documents"
 
     id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(String(100), index=True, nullable=False, default="anonymous")
     filename = Column(String(255), nullable=False)
     file_path = Column(String(500), nullable=False)
     file_size = Column(Integer, nullable=False)
@@ -66,14 +67,34 @@ class DocumentImage(Base):
     document = relationship("Document", back_populates="images")
 
 
+# ===================== CHAT THREAD TABLE =====================
+# Groups individual messages into a complete session/thread for the sidebar.
+class ChatThread(Base):
+    __tablename__ = "chat_threads"
+
+    id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(String(100), index=True, nullable=False, default="anonymous")
+    title = Column(String(255), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    is_pinned = Column(Integer, default=0) # 0=False, 1=True
+
+    # ---- Relationship ----
+    messages = relationship("ChatHistory", back_populates="thread", cascade="all, delete-orphan")
+
+
 # ===================== CHAT HISTORY TABLE =====================
-# Stores every question asked by the user and the AI-generated answer.
+# Stores every question asked by the user and the AI-generated answer within a thread.
 # 'sources' holds citation info as a JSON string (e.g., which pages were referenced).
 class ChatHistory(Base):
     __tablename__ = "chat_history"
 
     id = Column(Integer, primary_key=True, index=True)
+    thread_id = Column(Integer, ForeignKey("chat_threads.id"), nullable=False)
     question = Column(Text, nullable=False)
     answer = Column(Text, nullable=False)
     sources = Column(Text, nullable=True)
     timestamp = Column(DateTime, default=datetime.utcnow)
+
+    # ---- Relationship ----
+    thread = relationship("ChatThread", back_populates="messages")

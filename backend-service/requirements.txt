@@ -1,8 +1,10 @@
 fastapi
 uvicorn[standard]
+gunicorn
 sqlalchemy
 pydantic
 python-multipart
+slowapi
 python-dotenv
 requests
 pymupdf

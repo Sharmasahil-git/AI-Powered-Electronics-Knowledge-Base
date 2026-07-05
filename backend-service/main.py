@@ -2,7 +2,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
 import uvicorn
+import os
 from dotenv import load_dotenv
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from services.rate_limiter import limiter
 
 # Load environment variables from the .env file immediately
 load_dotenv()
@@ -20,15 +24,21 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# Attach the rate limiter to the FastAPI app
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 from fastapi.staticfiles import StaticFiles
 
 # ===================== CORS MIDDLEWARE =====================
-# CORS (Cross-Origin Resource Sharing) allows your frontend
-# (running on a different port/domain) to communicate with this backend.
-# Without this, browsers will block requests from your frontend.
+# CORS allows the frontend to communicate with this backend.
+# We pull allowed domains from the .env file. We default to allowing
+# localhost for your friend to test, or allowing everything if needed.
+allowed_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:3001,*").split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -61,7 +71,10 @@ async def startup_event():
     UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
     PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
     (STORAGE_DIR / "images").mkdir(parents=True, exist_ok=True)
-    init_db()
+    # Note: init_db() was removed from here because connecting to Supabase
+    # can take 15+ seconds on a cold start, which causes cloud platforms 
+    # like Render to kill the deployment for timing out. 
+    # Run database migrations manually instead.
 
 
 # ===================== API ROUTERS =====================
@@ -84,7 +97,8 @@ async def health_check():
 
 # ===================== SERVER RUNNER =====================
 # This block runs only when you execute: python main.py
-# It starts the Uvicorn server on port 8000 with auto-reload enabled,
-# so the server restarts automatically whenever you save a code change.
+# It starts the server using the dynamic PORT assigned by the cloud platform,
+# or defaults to 8000 for local development.
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)

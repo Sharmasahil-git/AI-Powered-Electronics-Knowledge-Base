@@ -37,6 +37,7 @@ class DocumentChunkResponse(BaseModel):
 class DocumentResponse(BaseModel):
     id: int
     filename: str
+    file_path: str
     file_size: int
     total_pages: int
     upload_date: datetime

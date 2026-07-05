@@ -1,5 +1,5 @@
 import os
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy.orm import Session
 from typing import List
 
@@ -7,45 +7,30 @@ from database.connection import get_db
 from database import crud
 from schemas.document_schema import DocumentResponse, DocumentListResponse
 
-# Create a FastAPI router for document-related endpoints
 router = APIRouter()
 
 # ===================== GET ALL DOCUMENTS =====================
-# The web address will be: GET /api/documents
-# Used by the frontend dashboard to show the user a list of all files they uploaded
 @router.get("/", response_model=DocumentListResponse)
-def get_documents(skip: int = 0, limit: int = 50, db: Session = Depends(get_db)):
-    # Fetch from PostgreSQL database
-    documents = crud.get_all_documents(db, skip=skip, limit=limit)
-    
-    # The frontend needs to know the total count for pagination (e.g., showing Page 1 of 5)
-    # We count how many documents were returned
+def get_documents(skip: int = 0, limit: int = 50, x_session_id: str = Header(default="anonymous"), db: Session = Depends(get_db)):
+    documents = crud.get_all_documents(db, session_id=x_session_id, skip=skip, limit=limit)
     total = len(documents)
-    
     return DocumentListResponse(
         total=total,
         documents=documents
     )
 
 # ===================== GET SINGLE DOCUMENT =====================
-# The web address will be: GET /api/documents/{id}
-# Used when the user clicks on a specific PDF to see its exact details
 @router.get("/{document_id}", response_model=DocumentResponse)
-def get_document(document_id: int, db: Session = Depends(get_db)):
-    document = crud.get_document(db, document_id=document_id)
-    
+def get_document(document_id: int, x_session_id: str = Header(default="anonymous"), db: Session = Depends(get_db)):
+    document = crud.get_document(db, document_id=document_id, session_id=x_session_id)
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
-        
     return document
 
 # ===================== DELETE DOCUMENT =====================
-# The web address will be: DELETE /api/documents/{id}
-# Used when the user wants to remove a PDF from the system entirely
 @router.delete("/{document_id}")
-def delete_document(document_id: int, db: Session = Depends(get_db)):
-    # 1. Look up the document to make sure it exists
-    document = crud.get_document(db, document_id=document_id)
+def delete_document(document_id: int, x_session_id: str = Header(default="anonymous"), db: Session = Depends(get_db)):
+    document = crud.get_document(db, document_id=document_id, session_id=x_session_id)
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
     
@@ -89,7 +74,7 @@ def delete_document(document_id: int, db: Session = Depends(get_db)):
 
     # 3. Delete from PostgreSQL database
     # Cascading deletes automatically remove all chunks and image records
-    success = crud.delete_document(db, document_id=document_id)
+    success = crud.delete_document(db, document_id=document_id, session_id=x_session_id)
     
     if not success:
         raise HTTPException(status_code=500, detail="Failed to delete document from database")

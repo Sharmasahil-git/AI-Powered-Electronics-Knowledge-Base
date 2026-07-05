@@ -4,19 +4,13 @@ from typing import List, Optional
 
 
 # ===================== CHAT REQUEST =====================
-# The shape of data the frontend sends when a user asks a question.
-# 'question' is required — the user's actual question.
-# 'document_ids' is optional — limits the search to specific documents.
-# If not provided, the system searches across ALL uploaded documents.
 class ChatRequest(BaseModel):
     question: str
     document_ids: Optional[List[int]] = None
+    thread_id: Optional[int] = None
 
 
 # ===================== CITATION SOURCE =====================
-# Represents one source that was used to build the AI's answer.
-# Each citation points to a specific chunk from a specific document and page.
-# This is what makes the answer "traceable" — users can verify the AI's claims.
 class CitationSource(BaseModel):
     document_id: int
     document_name: str
@@ -27,18 +21,14 @@ class CitationSource(BaseModel):
 
 
 # ===================== CHAT RESPONSE =====================
-# The complete response sent back to the frontend after a question is answered.
-# Contains the AI-generated answer plus a list of citations showing where
-# the information came from. This is the core output of the RAG pipeline.
 class ChatResponse(BaseModel):
     question: str
     answer: str
     sources: List[CitationSource]
+    thread_id: int
 
 
 # ===================== CHAT HISTORY ITEM =====================
-# Represents a single past Q&A entry from the database.
-# Used when the frontend loads previous conversations.
 class ChatHistoryItem(BaseModel):
     id: int
     question: str
@@ -50,9 +40,31 @@ class ChatHistoryItem(BaseModel):
         from_attributes = True
 
 
-# ===================== CHAT HISTORY RESPONSE =====================
-# Wraps a list of past Q&A entries with a total count.
-# Sent when the frontend requests chat history.
-class ChatHistoryResponse(BaseModel):
+# ===================== CHAT THREAD =====================
+class ChatThreadResponse(BaseModel):
+    id: int
+    session_id: str
+    title: str
+    created_at: datetime
+    updated_at: datetime
+    is_pinned: bool
+
+    class Config:
+        from_attributes = True
+
+
+# ===================== THREAD LIST =====================
+class ThreadListResponse(BaseModel):
     total: int
-    history: List[ChatHistoryItem]
+    threads: List[ChatThreadResponse]
+
+
+# ===================== THREAD HISTORY RESPONSE =====================
+class ChatHistoryResponse(BaseModel):
+    thread: ChatThreadResponse
+    messages: List[ChatHistoryItem]
+
+
+# ===================== RENAME REQUEST =====================
+class RenameThreadRequest(BaseModel):
+    title: str

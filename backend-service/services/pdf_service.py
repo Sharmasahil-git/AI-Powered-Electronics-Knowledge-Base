@@ -111,6 +111,8 @@ class PDFService:
 
                 # Upload to Supabase Storage if configured
                 from services.supabase_client import supabase
+                db_image_path = img_info["image_path"] # Fallback to local path if Supabase is down
+
                 if supabase:
                     try:
                         with open(img_info["image_path"], "rb") as f:
@@ -119,6 +121,15 @@ class PDFService:
                                 file=f.read(),
                                 file_options={"content-type": f"image/{img_info['format']}"}
                             )
+                        # The database should point to the public cloud URL
+                        db_image_path = supabase.storage.from_("images").get_public_url(img_info["image_filename"])
+                        
+                        # Delete the local temporary image file to free up ephemeral disk space
+                        try:
+                            os.remove(img_info["image_path"])
+                        except Exception as e:
+                            print(f"Failed to delete local temporary image {img_info['image_path']}: {e}")
+
                     except Exception as e:
                         print(f"Supabase image upload error: {e}")
 
@@ -127,7 +138,7 @@ class PDFService:
                     db=db,
                     document_id=document_id,
                     page_number=img_info["page_number"],
-                    image_path=img_info["image_path"],
+                    image_path=db_image_path,
                     image_filename=img_info["image_filename"],
                     width=img_info["width"],
                     height=img_info["height"],

@@ -1,14 +1,15 @@
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from database.models import Document, DocumentChunk, ChatHistory
-
+from datetime import datetime
+from database.models import Document, DocumentChunk, ChatHistory, ChatThread
 
 # ===================== DOCUMENT CRUD =====================
 
 # Creates a new document record in the database.
 # Called when a user uploads a PDF — saves its metadata (name, path, size).
-def create_document(db: Session, filename: str, file_path: str, file_size: int) -> Document:
+def create_document(db: Session, filename: str, file_path: str, file_size: int, session_id: str = "anonymous") -> Document:
     document = Document(
+        session_id=session_id,
         filename=filename,
         file_path=file_path,
         file_size=file_size
@@ -21,21 +22,21 @@ def create_document(db: Session, filename: str, file_path: str, file_size: int) 
 
 # Fetches a single document by its ID.
 # Returns the document if found, or None if the ID doesn't exist.
-def get_document(db: Session, document_id: int) -> Optional[Document]:
-    return db.query(Document).filter(Document.id == document_id).first()
+def get_document(db: Session, document_id: int, session_id: str) -> Optional[Document]:
+    return db.query(Document).filter(Document.id == document_id, Document.session_id == session_id).first()
 
 
 # Fetches all documents from the database.
 # 'skip' and 'limit' allow pagination (e.g., skip=0, limit=10 = first 10 results).
-def get_all_documents(db: Session, skip: int = 0, limit: int = 100) -> List[Document]:
-    return db.query(Document).offset(skip).limit(limit).all()
+def get_all_documents(db: Session, session_id: str, skip: int = 0, limit: int = 100) -> List[Document]:
+    return db.query(Document).filter(Document.session_id == session_id).offset(skip).limit(limit).all()
 
 
 # Updates the processing status of a document.
 # Flow: "pending" → "processing" → "completed" (or "failed" if something breaks).
 # Also sets total_pages once the PDF has been parsed.
 def update_document_status(db: Session, document_id: int, status: str, total_pages: int = None) -> Optional[Document]:
-    document = get_document(db, document_id)
+    document = db.query(Document).filter(Document.id == document_id).first() # Unscoped intentionally for background worker
     if document:
         document.status = status
         if total_pages is not None:
@@ -47,8 +48,8 @@ def update_document_status(db: Session, document_id: int, status: str, total_pag
 
 # Deletes a document and all its associated chunks (cascade delete).
 # Returns True if the document was found and deleted, False otherwise.
-def delete_document(db: Session, document_id: int) -> bool:
-    document = get_document(db, document_id)
+def delete_document(db: Session, document_id: int, session_id: str) -> bool:
+    document = get_document(db, document_id, session_id)
     if document:
         db.delete(document)
         db.commit()
@@ -117,10 +118,50 @@ def get_chunk_by_id(db: Session, chunk_id: int) -> DocumentChunk:
 
 # ===================== CHAT HISTORY CRUD =====================
 
-# Saves a Q&A entry — the user's question, the AI's answer, and which sources were cited.
-# 'sources' is stored as a plain string (JSON-formatted) so it stays flexible.
-def create_chat_entry(db: Session, question: str, answer: str, sources: str = None) -> ChatHistory:
+def create_chat_thread(db: Session, session_id: str, title: str) -> ChatThread:
+    thread = ChatThread(session_id=session_id, title=title)
+    db.add(thread)
+    db.commit()
+    db.refresh(thread)
+    return thread
+
+def get_chat_threads(db: Session, session_id: str, skip: int = 0, limit: int = 50) -> List[ChatThread]:
+    return db.query(ChatThread)\
+             .filter(ChatThread.session_id == session_id)\
+             .order_by(ChatThread.is_pinned.desc(), ChatThread.updated_at.desc())\
+             .offset(skip).limit(limit).all()
+
+def get_chat_thread_by_id(db: Session, thread_id: int, session_id: str) -> ChatThread:
+    return db.query(ChatThread).filter(ChatThread.id == thread_id, ChatThread.session_id == session_id).first()
+
+def rename_chat_thread(db: Session, thread_id: int, session_id: str, new_title: str) -> ChatThread:
+    thread = get_chat_thread_by_id(db, thread_id, session_id)
+    if thread:
+        thread.title = new_title
+        db.commit()
+        db.refresh(thread)
+    return thread
+
+def delete_chat_thread(db: Session, thread_id: int, session_id: str) -> bool:
+    thread = get_chat_thread_by_id(db, thread_id, session_id)
+    if thread:
+        db.delete(thread)
+        db.commit()
+        return True
+    return False
+
+def pin_chat_thread(db: Session, thread_id: int, session_id: str, is_pinned: bool) -> ChatThread:
+    thread = get_chat_thread_by_id(db, thread_id, session_id)
+    if thread:
+        thread.is_pinned = 1 if is_pinned else 0
+        db.commit()
+        db.refresh(thread)
+    return thread
+
+# Saves a Q&A entry within a specific thread.
+def create_chat_entry(db: Session, thread_id: int, question: str, answer: str, sources: str = None) -> ChatHistory:
     chat = ChatHistory(
+        thread_id=thread_id,
         question=question,
         answer=answer,
         sources=sources
@@ -128,7 +169,20 @@ def create_chat_entry(db: Session, question: str, answer: str, sources: str = No
     db.add(chat)
     db.commit()
     db.refresh(chat)
+    
+    # Touch the thread's updated_at timestamp
+    thread = db.query(ChatThread).filter(ChatThread.id == thread_id).first()
+    if thread:
+        thread.updated_at = datetime.utcnow()
+        db.commit()
+        
     return chat
+
+# Retrieves all messages for a specific thread, oldest first (chronological order for chat UI).
+def get_thread_messages(db: Session, thread_id: int) -> List[ChatHistory]:
+    return db.query(ChatHistory)\
+             .filter(ChatHistory.thread_id == thread_id)\
+             .order_by(ChatHistory.timestamp.asc()).all()
 
 # ===================== PGVECTOR SEARCH =====================
 def search_vectors(db: Session, query_embedding: List[float], document_ids: Optional[List[int]] = None, k: int = 40):
@@ -139,12 +193,7 @@ def search_vectors(db: Session, query_embedding: List[float], document_ids: Opti
     if document_ids:
         query = query.filter(DocumentChunk.document_id.in_(document_ids))
         
-    return query.order_by('distance').limit(k).all()
-
-
-# Fetches past Q&A conversations, newest first.
-# 'skip' and 'limit' control pagination (default: last 50).
-def get_chat_history(db: Session, skip: int = 0, limit: int = 50) -> List[ChatHistory]:
-    return db.query(ChatHistory).order_by(
-        ChatHistory.timestamp.desc()
-    ).offset(skip).limit(limit).all()
+    results = query.order_by('distance').limit(k).all()
+    
+    # Format exactly like FAISS used to: [(chunk_id, distance), ...]
+    return [(chunk.id, float(distance)) for chunk, distance in results]

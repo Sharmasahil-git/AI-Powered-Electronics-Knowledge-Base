@@ -23,7 +23,7 @@ class RAGService:
         self.current_key_idx = 0
 
     # ===================== ANSWER QUESTION =====================
-    def answer_question(self, question: str, db: Session, document_ids: Optional[List[int]] = None) -> ChatResponse:
+    def answer_question(self, question: str, db: Session, document_ids: Optional[List[int]] = None, session_id: str = "anonymous", thread_id: Optional[int] = None) -> ChatResponse:
         # Check for simple greetings or general conversational intent to bypass vector lookup
         conversational_greetings = {"hi", "hello", "hey", "hola", "greetings", "yo", "sup", "good morning", "good afternoon", "good evening", "help", "who are you", "what can you do", "what is this"}
         cleaned_question = question.strip().lower().replace("?", "").replace("!", "")
@@ -36,10 +36,26 @@ class RAGService:
                 "*   **Pinout Configurations:** Pin mappings, bus lines, interface registers.\n"
                 "*   **Visual Diagrams:** Multi-modal analysis of schematics, pin maps, and footprint drawings."
             )
-            return ChatResponse(
-                question=question,
-                answer=welcome_msg,
-                sources=[]
+            return self._finalize_and_save(db, session_id, thread_id, question, welcome_msg, [])
+
+        # 0. Enforce session isolation for documents
+        from database.models import Document
+        session_docs = db.query(Document.id).filter(Document.session_id == session_id).all()
+        session_doc_ids = [d.id for d in session_docs]
+        
+        if document_ids:
+            # Intersection: only allow searching requested documents if the user actually owns them
+            safe_doc_ids = list(set(document_ids).intersection(set(session_doc_ids)))
+        else:
+            # Search all documents owned by the user
+            safe_doc_ids = session_doc_ids
+
+        # If user has no documents (or requested documents they don't own), bypass search
+        if not safe_doc_ids:
+            return self._finalize_and_save(
+                db, session_id, thread_id, question, 
+                "You haven't uploaded any datasheets yet, or you don't have access to the selected ones. Please upload a PDF first!", 
+                []
             )
 
         # 1. Convert the user's question into a 384-dimensional vector
@@ -48,7 +64,15 @@ class RAGService:
 
         # 2. Search PostgreSQL (pgvector) for the top 40 most relevant chunks
         print("Searching database for relevant information...")
-        search_results = crud.search_vectors(db=db, query_embedding=question_vector, document_ids=document_ids, k=40)
+        # Since search_vectors returns distance as a tuple, we must fetch chunks explicitly
+        from database.models import DocumentChunk
+        search_results_tuples = crud.search_vectors(db=db, query_embedding=question_vector, document_ids=safe_doc_ids, k=40)
+        
+        search_results = []
+        for chunk_id, distance in search_results_tuples:
+            chunk = db.query(DocumentChunk).filter(DocumentChunk.id == chunk_id).first()
+            if chunk:
+                search_results.append((chunk, distance))
 
         from services.supabase_client import supabase
 
@@ -76,26 +100,34 @@ class RAGService:
                 image_url=image_url
             ))
 
-        # 4. Filter citations by a relevance threshold (L2 distance <= 1.35)
+        # 4. Check if the user query warrants visual image context
+        visual_keywords = ["diagram", "drawing", "image", "schematic", "footprint", "package", "dimension", "size", "layout", "pinout", "circuit", "figure", "fig", "picture", "pin", "symbol"]
+        question_lower = question.lower()
+        needs_visual = any(keyword in question_lower for keyword in visual_keywords)
+
+        # 5. Filter citations by a relevance threshold
         if citations:
             print(f"[RAG] Best match L2 distance: {citations[0].relevance_score:.4f}")
             
-        valid_citations = [c for c in citations if c.relevance_score <= 1.35]
+        valid_citations = []
+        for c in citations:
+            # If the user specifically asked for an image, allow a much looser semantic match (1.85) for image chunks
+            if needs_visual and c.image_url:
+                if c.relevance_score <= 1.85:
+                    valid_citations.append(c)
+            # Use strict text threshold (1.45) for regular text chunks
+            elif c.relevance_score <= 1.45:
+                valid_citations.append(c)
 
         if not valid_citations:
-            return ChatResponse(
-                question=question,
-                answer="I couldn't find any relevant details in the uploaded datasheets for that query. Please ask a specific engineering question (e.g. about pin configuration, voltage ratings, or footprints).",
-                sources=[]
+            return self._finalize_and_save(
+                db, session_id, thread_id, question,
+                "I couldn't find any relevant details in the uploaded datasheets for that query. Please ask a specific engineering question (e.g. about pin configuration, voltage ratings, or footprints).",
+                []
             )
 
-        # 5. Semantic Reranking: Re-score and sort the candidates using OpenRouter's Reranker
+        # 6. Semantic Reranking: Re-score and sort the candidates using OpenRouter's Reranker
         reranked_citations = self._rerank_citations(question, valid_citations, top_n=5)
-
-        # 6. Check if the user query warrants visual image context
-        visual_keywords = {"diagram", "drawing", "image", "schematic", "footprint", "package", "dimension", "size", "layout", "pinout", "circuit", "figure", "fig", "picture", "pin", "symbol"}
-        query_words = set(question.lower().replace("?", "").replace("!", "").split())
-        needs_visual = not query_words.isdisjoint(visual_keywords)
         
         # If query doesn't need images, strip them out so frontend and API ignore them
         if not needs_visual:
@@ -111,19 +143,30 @@ class RAGService:
         # 8. Ask Gemini to read the context (and images) to answer the question
         answer = self._ask_gemini(question, context_text, reranked_citations)
 
-        # 8. Save the conversation into the PostgreSQL database for history
+        return self._finalize_and_save(db, session_id, thread_id, question, answer, reranked_citations)
+
+    def _finalize_and_save(self, db, session_id, thread_id, question, answer, citations):
+        # Create a new thread if one doesn't exist
+        if not thread_id:
+            title = question[:50] + ("..." if len(question) > 50 else "")
+            new_thread = crud.create_chat_thread(db, session_id=session_id, title=title)
+            thread_id = new_thread.id
+
+        # Save the conversation into the PostgreSQL database for history
         crud.create_chat_entry(
             db=db,
+            thread_id=thread_id,
             question=question,
             answer=answer,
-            sources=json.dumps([cite.model_dump() for cite in reranked_citations])
+            sources=json.dumps([cite.model_dump() for cite in citations]) if citations else None
         )
 
-        # 9. Return the final formatted response to the frontend
+        # Return the final formatted response to the frontend
         return ChatResponse(
             question=question,
             answer=answer,
-            sources=reranked_citations
+            sources=citations,
+            thread_id=thread_id
         )
 
     def _rerank_citations(self, query: str, citations: List, top_n: int = 5) -> List:
@@ -171,7 +214,6 @@ class RAGService:
         if not self.api_keys:
             return "ERROR: Gemini API Key is missing. Please set the GEMINI_API_KEY environment variable."
 
-        # Structured prompt with XML tags and recency constraints to enforce strict direct answers
         prompt = f"""You are an expert Electronics Engineer AI assistant. You must answer user questions based strictly on the provided datasheet text.
 Do NOT output internal thoughts, chain-of-thought, reasoning paragraphs, or scanning notes.
 Do NOT start your answer with introductory phrases like 'Based on the drawings...' or 'Looking at the context...'.

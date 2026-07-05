@@ -2,7 +2,8 @@ import os
 import shutil
 import asyncio
 import threading
-from fastapi import APIRouter, UploadFile, File, Depends, BackgroundTasks, HTTPException, WebSocket, WebSocketDisconnect
+import uuid
+from fastapi import APIRouter, UploadFile, File, Depends, BackgroundTasks, HTTPException, WebSocket, WebSocketDisconnect, Header, Request
 from sqlalchemy.orm import Session
 
 from database.connection import get_db
@@ -11,6 +12,7 @@ from schemas.document_schema import DocumentUploadResponse
 from services.pdf_service import PDFService
 from services.embedding_service import EmbeddingService
 from services.websocket_manager import ws_manager
+from services.rate_limiter import limiter
 
 # Create a FastAPI router for upload-related endpoints
 router = APIRouter()
@@ -130,26 +132,40 @@ def _broadcast_sync(document_id: int, message: dict):
 # ===================== UPLOAD ENDPOINT =====================
 # The web address will be: POST /api/upload
 @router.post("/upload", response_model=DocumentUploadResponse)
+@limiter.limit("5/minute")
 async def upload_pdf(
+    request: Request,
     background_tasks: BackgroundTasks, 
     file: UploadFile = File(...), 
+    x_session_id: str = Header(default="anonymous"),
     db: Session = Depends(get_db)
 ):
-    # 1. Check if the uploaded file is actually a PDF
-    if not file.filename.lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="Only PDF files are allowed.")
+    # 1. Check if the uploaded file is actually a PDF (MIME type check instead of just extension)
+    if file.content_type != "application/pdf" or not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Invalid file type. Only PDF documents are allowed.")
 
-    # 2. Define exactly where we will save this file
-    from services.supabase_client import supabase
+    # 2. Prevent DoS attacks by enforcing a strict 20MB file size limit BEFORE loading fully into RAM
+    MAX_FILE_SIZE = 20 * 1024 * 1024  # 20 MB
+    file_bytes = bytearray()
     
-    file_bytes = file.file.read()
+    # Read in 1MB chunks so we don't blow up server RAM on malicious 5GB uploads
+    while chunk := await file.read(1024 * 1024):
+        file_bytes.extend(chunk)
+        if len(file_bytes) > MAX_FILE_SIZE:
+            raise HTTPException(status_code=413, detail="File too large. Maximum size is 20MB.")
+    
+    file_bytes = bytes(file_bytes)
     file_size = len(file_bytes)
-    file.file.seek(0) # Reset pointer just in case
+
+    # 3. Prevent Path Traversal (Zip Slip) by sanitizing the filename
+    # We generate a unique UUID to completely eliminate collision and traversal risks
+    safe_base_name = os.path.basename(file.filename)
+    unique_filename = f"{uuid.uuid4().hex}_{safe_base_name}"
 
     # Always save a local copy for PyMuPDF to parse
     upload_dir = "storage/uploads"
     os.makedirs(upload_dir, exist_ok=True) 
-    local_file_path = os.path.join(upload_dir, file.filename)
+    local_file_path = os.path.join(upload_dir, unique_filename)
     
     try:
         with open(local_file_path, "wb") as buffer:
@@ -159,19 +175,20 @@ async def upload_pdf(
 
     db_file_path = local_file_path
 
+    from services.supabase_client import supabase
     if supabase:
         # Upload to Supabase Storage bucket named 'uploads'
         try:
             res = supabase.storage.from_("uploads").upload(
-                path=file.filename,
+                path=unique_filename,
                 file=file_bytes,
                 file_options={"content-type": "application/pdf"}
             )
             # The file path is the public URL
-            db_file_path = supabase.storage.from_("uploads").get_public_url(file.filename)
+            db_file_path = supabase.storage.from_("uploads").get_public_url(unique_filename)
         except Exception as e:
-            # If upload fails (e.g., file already exists), try to get the public URL anyway
-            db_file_path = supabase.storage.from_("uploads").get_public_url(file.filename)
+            # If upload fails, try to get the public URL anyway
+            db_file_path = supabase.storage.from_("uploads").get_public_url(unique_filename)
 
     # 5. Create a record in our database so we can track its status
     # We store the Supabase URL in the DB so the frontend can display it,
@@ -180,7 +197,8 @@ async def upload_pdf(
         db=db,
         filename=file.filename,
         file_path=db_file_path,
-        file_size=file_size
+        file_size=file_size,
+        session_id=x_session_id
     )
 
     # 6. Kick off the heavy processing in the background using the LOCAL path!
