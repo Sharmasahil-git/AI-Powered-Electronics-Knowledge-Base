@@ -11,4 +11,6 @@ pymupdf
 websockets
 supabase
 pgvector
+google-generativeai
+langchain-text-splitters
 psycopg2-binary
