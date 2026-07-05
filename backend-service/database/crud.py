@@ -190,10 +190,14 @@ def search_vectors(db: Session, query_embedding: List[float], document_ids: Opti
         DocumentChunk,
         DocumentChunk.embedding.l2_distance(query_embedding).label('distance')
     )
+    
+    # Safely ignore chunks that failed to embed (where embedding is NULL)
+    query = query.filter(DocumentChunk.embedding.is_not(None))
+    
     if document_ids:
         query = query.filter(DocumentChunk.document_id.in_(document_ids))
         
     results = query.order_by('distance').limit(k).all()
     
     # Format exactly like FAISS used to: [(chunk_id, distance), ...]
-    return [(chunk.id, float(distance)) for chunk, distance in results]
+    return [(chunk.id, float(distance)) for chunk, distance in results if distance is not None]
