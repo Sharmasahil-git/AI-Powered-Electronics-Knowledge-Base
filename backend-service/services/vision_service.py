@@ -93,9 +93,9 @@ class VisionService:
             data = self._make_request_with_retry(payload)
             
             # Since we now have multiple keys and automatic rotation, we can drop
-            # the massive 4.5s delay down to a tiny 1s polite delay. This makes
-            # image processing exponentially faster!
-            time.sleep(1)
+            # the massive 4.5s delay down to a tiny 1.5s polite delay. This makes
+            # image processing exponentially faster without hitting the 15 RPM limit!
+            time.sleep(1.5)
             
             description = data['candidates'][0]['content']['parts'][0]['text']
             return description

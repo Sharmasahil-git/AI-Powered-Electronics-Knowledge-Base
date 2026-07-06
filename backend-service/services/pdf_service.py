@@ -84,9 +84,9 @@ class PDFService:
 
         print(f"[Phase 2] Found {total_images} images. Processing in parallel...")
 
-        # 2. Process images in parallel! 
-        # Max workers = 5 means it analyzes 5 images at the exact same time.
-        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+        # 2. Process images sequentially to respect strict free-tier rate limits!
+        # Max workers = 1 means it analyzes 1 image at a time so we don't DDoS our own API keys.
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
             # We map a future to its img_info so we know which one finished
             future_to_img = {}
             for idx, img_info in enumerate(images_data):

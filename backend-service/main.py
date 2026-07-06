@@ -34,7 +34,10 @@ from fastapi.staticfiles import StaticFiles
 # CORS allows the frontend to communicate with this backend.
 # We pull allowed domains from the .env file. We default to allowing
 # localhost for your friend to test, or allowing everything if needed.
-allowed_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:3001,*").split(",")
+cors_env = os.getenv("CORS_ORIGINS", "")
+allowed_origins = cors_env.split(",") if cors_env else []
+# Force-allow standard localhosts (including Vite's 5173) and wildcard to prevent blocks
+allowed_origins.extend(["http://localhost:3000", "http://localhost:3001", "http://localhost:5173", "*"])
 
 app.add_middleware(
     CORSMiddleware,
