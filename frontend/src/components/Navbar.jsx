@@ -4,27 +4,24 @@ import "../styles/Navbar.css";
 function Navbar() {
   return (
     <nav className="navbar">
-      <h2 className="logo">DataSheetIQ</h2>
+
+      <div className="logo">
+        <h2>DataSheetAI</h2>
+      </div>
 
       <ul className="nav-links">
-        <li>
-          <Link to="/">Home</Link>
-        </li>
-
-        <li>
-          <Link to="/upload">Upload</Link>
-        </li>
-
-        <li>
-          <Link to="/chat">Ask AI</Link>
-        </li>
-
-        <li>
-          <Link to="/about">About</Link>
-        </li>
+        <li><Link to="/">Home</Link></li>
+        <li><Link to="/">Use Cases</Link></li>
+        <li><Link to="/about">About</Link></li>
       </ul>
+
+      <button className="login-btn">
+        Login
+      </button>
+
     </nav>
   );
 }
 
 export default Navbar;
+
