@@ -30,9 +30,27 @@ def get_thread(thread_id: int, x_session_id: str = Header(default="anonymous"), 
         raise HTTPException(status_code=404, detail="Chat thread not found")
         
     messages = crud.get_thread_messages(db, thread_id)
+    
+    import json
+    parsed_messages = []
+    for msg in messages:
+        msg_dict = {
+            "id": msg.id,
+            "question": msg.question,
+            "answer": msg.answer,
+            "timestamp": msg.timestamp,
+            "sources": []
+        }
+        if msg.sources:
+            try:
+                msg_dict["sources"] = json.loads(msg.sources)
+            except Exception:
+                pass
+        parsed_messages.append(msg_dict)
+        
     return ChatHistoryResponse(
         thread=thread,
-        messages=messages
+        messages=parsed_messages
     )
 
 # ===================== RENAME THREAD =====================
