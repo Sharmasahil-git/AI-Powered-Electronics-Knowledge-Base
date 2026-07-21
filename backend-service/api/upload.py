@@ -34,7 +34,9 @@ def process_document_background(document_id: int, file_path: str, db: Session):
         text_chunks = pdf_service.process_text_and_tables(document_id, file_path, db)
 
         # 2. Generate embeddings for ALL text chunks in batch and save to FAISS
-        embedding_service.generate_embeddings_for_document(document_id, db)
+        success = embedding_service.generate_embeddings_for_document(document_id, db)
+        if not success:
+            raise Exception("Failed to generate embeddings. API limits or timeout.")
 
         # 3. Update status to "text_ready" so the frontend knows the user can start chatting
         crud.update_document_status(db, document_id=document_id, status="text_ready")

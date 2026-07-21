@@ -127,14 +127,14 @@ class RAGService:
             )
 
         # 6. Semantic Reranking: Re-score and sort the candidates using OpenRouter's Reranker
-        reranked_citations = self._rerank_citations(question, valid_citations, top_n=5)
+        reranked_citations = self._rerank_citations(question, valid_citations, top_n=25)
         
         # If query doesn't need images, strip them out so frontend and API ignore them
         if not needs_visual:
             for cite in reranked_citations:
                 cite.image_url = None
 
-        # 7. Combine the text from the top 5 reranked citations into one big string to show the AI
+        # 7. Combine the text from the top 25 reranked citations into one big string to show the AI
         context_text = "\n\n".join([
             f"From {cite.document_name} (Page {cite.page_number}):\n{cite.chunk_text}"
             for cite in reranked_citations
@@ -169,7 +169,7 @@ class RAGService:
             thread_id=thread_id
         )
 
-    def _rerank_citations(self, query: str, citations: List, top_n: int = 5) -> List:
+    def _rerank_citations(self, query: str, citations: List, top_n: int = 25) -> List:
         # NVIDIA OpenRouter Reranker has been removed as per user request.
         # Defaulting directly to the initial FAISS semantic similarity order.
         return citations[:top_n]
