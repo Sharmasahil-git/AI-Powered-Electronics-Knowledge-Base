@@ -64,9 +64,17 @@ class RAGService:
 
         # 2. Search PostgreSQL (pgvector) for the top 40 most relevant chunks
         print("Searching database for relevant information...")
-        # Since search_vectors returns distance as a tuple, we must fetch chunks explicitly
         from database.models import DocumentChunk
-        search_results_tuples = crud.search_vectors(db=db, query_embedding=question_vector, document_ids=safe_doc_ids, k=40)
+        search_results_tuples = []
+        if len(safe_doc_ids) > 1:
+            # Diverse Retrieval: Strictly fetch the top 5 chunks from EACH selected document
+            # and do not re-sort globally so they are guaranteed to reach the LLM.
+            k_per_doc = 5
+            for doc_id in safe_doc_ids:
+                doc_results = crud.search_vectors(db=db, query_embedding=question_vector, document_ids=[doc_id], k=k_per_doc)
+                search_results_tuples.extend(doc_results)
+        else:
+            search_results_tuples = crud.search_vectors(db=db, query_embedding=question_vector, document_ids=safe_doc_ids, k=40)
         
         search_results = []
         for chunk_id, distance in search_results_tuples:
@@ -81,7 +89,7 @@ class RAGService:
         for chunk, distance in search_results:
             if distance is None:
                 continue
-            if len(citations) >= 25:
+            if len(citations) >= 100:
                 break
                 
             image_url = None
@@ -127,7 +135,7 @@ class RAGService:
             )
 
         # 6. Semantic Reranking: Re-score and sort the candidates using OpenRouter's Reranker
-        reranked_citations = self._rerank_citations(question, valid_citations, top_n=25)
+        reranked_citations = self._rerank_citations(question, valid_citations, top_n=100)
         
         # If query doesn't need images, strip them out so frontend and API ignore them
         if not needs_visual:
