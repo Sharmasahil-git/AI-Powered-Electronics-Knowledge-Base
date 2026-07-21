@@ -28,6 +28,27 @@ embedding_service = EmbeddingService()
 # PHASE 2: Extract images one-by-one → describe → embed → stream progress via WebSocket
 def process_document_background(document_id: int, file_path: str, db: Session):
 
+    # ==================== PHASE 0: CLOUD UPLOAD (BACKGROUND) ====================
+    try:
+        from services.supabase_client import supabase
+        if supabase:
+            unique_filename = os.path.basename(file_path)
+            with open(file_path, "rb") as f:
+                file_bytes = f.read()
+            supabase.storage.from_("uploads").upload(
+                path=unique_filename,
+                file=file_bytes,
+                file_options={"content-type": "application/pdf"}
+            )
+            public_url = supabase.storage.from_("uploads").get_public_url(unique_filename)
+            from database.models import Document
+            doc = db.query(Document).filter(Document.id == document_id).first()
+            if doc:
+                doc.file_path = public_url
+                db.commit()
+    except Exception as e:
+        print(f"Background cloud upload failed: {e}")
+
     # ==================== PHASE 1: TEXT (INSTANT) ====================
     try:
         # 1. Extract text and tables, chunk them, save to SQLite
@@ -175,22 +196,7 @@ async def upload_pdf(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Could not save file locally: {str(e)}")
 
-    db_file_path = local_file_path
-
-    from services.supabase_client import supabase
-    if supabase:
-        # Upload to Supabase Storage bucket named 'uploads'
-        try:
-            res = supabase.storage.from_("uploads").upload(
-                path=unique_filename,
-                file=file_bytes,
-                file_options={"content-type": "application/pdf"}
-            )
-            # The file path is the public URL
-            db_file_path = supabase.storage.from_("uploads").get_public_url(unique_filename)
-        except Exception as e:
-            # If upload fails, try to get the public URL anyway
-            db_file_path = supabase.storage.from_("uploads").get_public_url(unique_filename)
+    db_file_path = f"/uploads/{unique_filename}"
 
     # 5. Create a record in our database so we can track its status
     # We store the Supabase URL in the DB so the frontend can display it,
