@@ -33,7 +33,7 @@ class ChatHistoryItem(BaseModel):
     id: int
     question: str
     answer: str
-    sources: Optional[str] = None
+    sources: Optional[List[CitationSource]] = None
     timestamp: datetime
 
     class Config:
