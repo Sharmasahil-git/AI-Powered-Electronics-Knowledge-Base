@@ -279,8 +279,13 @@ If the context does not contain enough details, output exactly: "I don't have en
                         })
                         attached_images += 1
                         print(f"[RAG] Attaching image citation: {cite.image_url}")
+                    else:
+                        cite.image_url = None
                 except Exception as e:
                     print(f"Error loading image for multimodal chat: {e}")
+                    cite.image_url = None
+            else:
+                cite.image_url = None
 
         payload = {
             "contents": [{
