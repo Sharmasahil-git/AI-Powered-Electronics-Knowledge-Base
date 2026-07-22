@@ -1,11 +1,46 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, Component, ErrorInfo, ReactNode } from "react";
 import { createShapeId, Editor, AssetRecordType } from "tldraw";
 import "tldraw/tldraw.css";
-import { ArrowLeft, Upload, Loader2, X } from "lucide-react";
+import { ArrowLeft, Upload, Loader2, X, AlertTriangle } from "lucide-react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
+
+class CanvasErrorBoundary extends Component<{children: ReactNode}, {hasError: boolean, error: Error | null}> {
+  state = { hasError: false, error: null as Error | null };
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error("Canvas Crash:", error, errorInfo);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="w-full h-full flex flex-col items-center justify-center bg-[var(--bg-primary)] p-8 text-center text-red-500 z-[9999] absolute inset-0">
+          <AlertTriangle size={48} className="mb-4 opacity-80" />
+          <h2 className="text-xl font-bold mb-2">Canvas Engine Crashed</h2>
+          <p className="text-[13px] text-[var(--text-secondary)] mb-6 max-w-md">
+            Please screenshot the error below and send it to the developer.
+          </p>
+          <pre className="text-[11px] bg-red-500/10 p-4 rounded-xl text-left overflow-auto max-w-2xl w-full border border-red-500/20 text-red-400">
+            {this.state.error?.message || "Unknown fatal error"}
+            {"\n\n"}
+            {this.state.error?.stack}
+          </pre>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="mt-6 px-6 py-2 bg-red-500 hover:bg-red-600 transition-colors text-white rounded-xl text-[13px] font-medium"
+          >
+            Reload Page
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const Tldraw = dynamic(async () => (await import("tldraw")).Tldraw, { 
   ssr: false,
@@ -289,7 +324,9 @@ export default function CanvasPage() {
       )}
 
       <div className="flex-1 w-full h-full relative z-0">
-        <Tldraw onMount={handleMount} />
+        <CanvasErrorBoundary>
+          <Tldraw onMount={handleMount} />
+        </CanvasErrorBoundary>
       </div>
     </main>
   );
