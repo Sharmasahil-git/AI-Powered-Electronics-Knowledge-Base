@@ -2,7 +2,6 @@
 
 import React, { useState, useRef, useEffect, Component, ErrorInfo, ReactNode } from "react";
 import { createShapeId, Editor, AssetRecordType } from "tldraw";
-import "tldraw/tldraw.css";
 import { ArrowLeft, Upload, Loader2, X, AlertTriangle } from "lucide-react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
@@ -80,61 +79,65 @@ export default function CanvasPage() {
 
   const handleMount = (editor: Editor) => {
     setEditor(editor);
-    editor.updateInstanceState({ isGridMode: true });
-
-    const pendingDataStr = localStorage.getItem("pendingCanvasData");
-    if (pendingDataStr) {
+    
+    // Defer state updates to avoid React mounting conflicts in production
+    setTimeout(() => {
       try {
-        const pendingData = JSON.parse(pendingDataStr);
-        let currentY = 100;
-        
-        if (pendingData.images && pendingData.images.length > 0) {
-          pendingData.images.forEach((imgUrl: string) => {
-            const assetId = AssetRecordType.createId();
-            editor.createAssets([{
-              id: assetId,
-              type: "image",
-              typeName: "asset",
-              props: {
-                name: "chat-image",
-                src: imgUrl,
-                w: 400,
-                h: 300,
-                mimeType: "image/png",
-                isAnimated: false
-              },
-              meta: {}
-            }]);
+        editor.updateInstanceState({ isGridMode: true });
 
+        const pendingDataStr = localStorage.getItem("pendingCanvasData");
+        if (pendingDataStr) {
+          const pendingData = JSON.parse(pendingDataStr);
+          let currentY = 100;
+          
+          if (pendingData.images && pendingData.images.length > 0) {
+            pendingData.images.forEach((imgUrl: string) => {
+              const assetId = AssetRecordType.createId();
+              editor.createAssets([{
+                id: assetId,
+                type: "image",
+                typeName: "asset",
+                props: {
+                  name: "chat-image",
+                  src: imgUrl,
+                  w: 400,
+                  h: 300,
+                  mimeType: "image/png",
+                  isAnimated: false
+                },
+                meta: {}
+              }]);
+
+              const id = createShapeId();
+              editor.createShape({
+                id,
+                type: "image",
+                x: 100,
+                y: currentY,
+                props: { w: 400, h: 300, assetId },
+              });
+              currentY += 350;
+            });
+          }
+          
+          if (pendingData.text) {
             const id = createShapeId();
+            // @ts-ignore - tldraw union types can be overly strict with dynamic props
             editor.createShape({
               id,
-              type: "image",
+              type: "geo", // Geo shape supports text and acts as a textbox
               x: 100,
               y: currentY,
-              props: { w: 400, h: 300, assetId },
-            });
-            currentY += 350;
-          });
+              props: { text: String(pendingData.text) },
+            } as any);
+          }
+          
+          localStorage.removeItem("pendingCanvasData");
         }
-        
-        if (pendingData.text) {
-          const id = createShapeId();
-          // @ts-ignore - tldraw union types can be overly strict with dynamic props
-          editor.createShape({
-            id,
-            type: "geo", // Geo shape supports text and acts as a textbox
-            x: 100,
-            y: currentY,
-            props: { text: String(pendingData.text) },
-          } as any);
-        }
-        
-        localStorage.removeItem("pendingCanvasData");
       } catch (e) {
         console.error("Failed to parse pending canvas data", e);
       }
-    }
+    }, 100);
   };
 
   const onFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
