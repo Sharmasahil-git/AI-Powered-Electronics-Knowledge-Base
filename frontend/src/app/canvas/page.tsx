@@ -56,6 +56,22 @@ export default function CanvasPage() {
   const [editor, setEditor] = useState<Editor | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
+  // Ultimate Production Crash Catcher
+  useEffect(() => {
+    const handleError = (event: ErrorEvent) => {
+      alert(`FATAL CRASH:\n${event.message}\nFile: ${event.filename}:${event.lineno}`);
+    };
+    const handleRejection = (event: PromiseRejectionEvent) => {
+      alert(`UNHANDLED PROMISE:\n${event.reason}`);
+    };
+    window.addEventListener('error', handleError);
+    window.addEventListener('unhandledrejection', handleRejection);
+    return () => {
+      window.removeEventListener('error', handleError);
+      window.removeEventListener('unhandledrejection', handleRejection);
+    };
+  }, []);
+
   // PDF Extraction State
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [showModal, setShowModal] = useState(false);
@@ -251,7 +267,8 @@ export default function CanvasPage() {
   };
 
   return (
-    <main className="w-screen h-screen bg-[var(--bg-primary)] overflow-hidden flex flex-col font-sans relative">
+    <CanvasErrorBoundary>
+      <main className="w-screen h-screen bg-[var(--bg-primary)] overflow-hidden flex flex-col font-sans relative">
       {/* Top Nav */}
       <div className="absolute top-4 left-4 z-[999]">
         <Link href="/dashboard" className="flex items-center gap-2 px-4 py-2 bg-white/70 dark:bg-[#0A0A0B]/70 backdrop-blur-md border border-[var(--border-color)] rounded-xl text-[14px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] shadow-sm transition-colors">
@@ -324,10 +341,9 @@ export default function CanvasPage() {
       )}
 
       <div className="flex-1 w-full h-full relative z-0">
-        <CanvasErrorBoundary>
-          <Tldraw onMount={handleMount} />
-        </CanvasErrorBoundary>
+        <Tldraw onMount={handleMount} />
       </div>
     </main>
+    </CanvasErrorBoundary>
   );
 }
