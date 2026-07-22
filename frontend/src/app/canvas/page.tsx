@@ -206,8 +206,8 @@ export default function CanvasPage() {
         const pageNum = pagesToExtract[i];
         const page = await pdf.getPage(pageNum);
         
-        // Render at 2x scale for better clarity on whiteboard
-        const viewport = page.getViewport({ scale: 2.0 });
+        // Render at 1.5x scale for balance between clarity and memory usage
+        const viewport = page.getViewport({ scale: 1.5 });
         const canvas = document.createElement("canvas");
         const context = canvas.getContext("2d");
         
@@ -222,10 +222,16 @@ export default function CanvasPage() {
           viewport: viewport
         }).promise;
         
-        const dataUrl = canvas.toDataURL("image/jpeg", 0.8); // JPEG is much smaller than PNG
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.7); // 70% quality JPEG is much smaller
         
-        const displayWidth = viewport.width / 2;
-        const displayHeight = viewport.height / 2;
+        // AGGRESSIVELY FREE MEMORY TO PREVENT BROWSER GPU CRASH
+        canvas.width = 0;
+        canvas.height = 0;
+        context.clearRect(0, 0, 0, 0);
+        page.cleanup(); // Free pdf.js internal memory
+
+        const displayWidth = viewport.width / 1.5;
+        const displayHeight = viewport.height / 1.5;
 
         const assetId = AssetRecordType.createId();
         editor.createAssets([{
