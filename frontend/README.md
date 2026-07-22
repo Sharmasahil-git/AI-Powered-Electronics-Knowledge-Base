@@ -6,7 +6,7 @@ This is the Next.js frontend application for **DatasheetAI**, featuring a stunni
 - **AI Chat Interface:** Chat seamlessly with your engineering datasheets via the FastAPI RAG backend.
 - **Infinite Whiteboard:** Powered by `tldraw`, allowing you to sketch circuits on an engineering dot-grid.
 - **Native PDF Extraction:** Uses `pdfjs-dist` to silently parse uploaded PDFs in the browser and extract pages as draggable images onto the whiteboard.
-- **Secret Admin Mode:** Add `?admin=true` to the URL to bypass the Premium Paywall and access the Canvas buttons.
+
 
 ## 🛠 Getting Started
 
