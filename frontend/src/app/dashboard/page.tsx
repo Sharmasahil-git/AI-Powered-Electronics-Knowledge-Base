@@ -17,6 +17,7 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [theme, setTheme] = useState<"light" | "dark">("dark");
   const [mounted, setMounted] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -63,12 +64,22 @@ export default function Dashboard() {
   return (
     <main className="h-screen flex bg-[var(--bg-primary)] text-[var(--text-primary)] overflow-hidden font-sans">
 
+      {/* Mobile Sidebar Overlay Backdrop */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[90] md:hidden transition-opacity" 
+          onClick={() => setIsSidebarOpen(false)} 
+        />
+      )}
+
       {/* LEFT: Sidebar */}
       <motion.div 
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.25 }}
-        className="w-[260px] flex-shrink-0 flex flex-col h-full bg-[var(--sidebar-bg)]"
+        className={`fixed md:relative z-[100] md:z-0 transform transition-transform duration-300 md:translate-x-0 w-[260px] flex-shrink-0 flex flex-col h-full bg-[var(--sidebar-bg)] border-r border-[var(--border-color)] ${
+          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
       >
         {/* Sidebar top — logo row */}
         <div className="flex items-center justify-between px-3 pt-3 pb-1">
@@ -129,6 +140,7 @@ export default function Dashboard() {
           selectedDocsCount={selectedDocs.length}
           onClearFilters={() => setSelectedDocs([])}
           onOpenUpload={() => setIsUploading(true)}
+          onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
         />
       </motion.div>
 

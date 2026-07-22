@@ -1,5 +1,5 @@
 import { FormEvent, useRef, useEffect, useState } from "react";
-import { Sparkles, Send, FileText, Plus, ChevronDown, Share, MoreHorizontal } from "lucide-react";
+import { Sparkles, Send, FileText, Plus, ChevronDown, Share, MoreHorizontal, Menu } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { ChatMessage } from "@/hooks/useChatSessions";
@@ -13,6 +13,7 @@ interface ChatWindowProps {
   selectedDocsCount: number;
   onClearFilters: () => void;
   onOpenUpload?: () => void;
+  onToggleSidebar?: () => void;
 }
 
 // Secure API routing: Uses env var first, defaults to Render in production, localhost in development
@@ -24,7 +25,8 @@ export default function ChatWindow({
   onSendMessage,
   selectedDocsCount,
   onClearFilters,
-  onOpenUpload
+  onOpenUpload,
+  onToggleSidebar
 }: ChatWindowProps) {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -68,10 +70,20 @@ export default function ChatWindow({
 
       {/* Top Navigation Bar */}
       <div className="flex items-center justify-between px-4 py-3 text-[var(--text-primary)]">
-        {/* Left: Model Selector */}
-        <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[15px] font-semibold hover:bg-[var(--hover-bg)] transition-colors">
-          DatasheetAI <ChevronDown size={16} className="text-[var(--text-secondary)]" />
-        </button>
+        {/* Left: Model Selector & Menu */}
+        <div className="flex items-center gap-2">
+          {onToggleSidebar && (
+            <button 
+              onClick={onToggleSidebar}
+              className="md:hidden p-1.5 -ml-1.5 rounded-lg hover:bg-[var(--hover-bg)] transition-colors text-[var(--text-secondary)]"
+            >
+              <Menu size={20} />
+            </button>
+          )}
+          <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[15px] font-semibold hover:bg-[var(--hover-bg)] transition-colors">
+            DatasheetAI <ChevronDown size={16} className="text-[var(--text-secondary)]" />
+          </button>
+        </div>
 
         {/* Right: Actions */}
         <div className="flex items-center gap-1">
