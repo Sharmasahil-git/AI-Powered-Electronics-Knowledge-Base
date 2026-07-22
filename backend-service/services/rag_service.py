@@ -74,7 +74,8 @@ class RAGService:
                 doc_results = crud.search_vectors(db=db, query_embedding=question_vector, document_ids=[doc_id], k=k_per_doc)
                 search_results_tuples.extend(doc_results)
         else:
-            search_results_tuples = crud.search_vectors(db=db, query_embedding=question_vector, document_ids=safe_doc_ids, k=40)
+            # Prevent UI flooding for single-document queries by limiting to top 5 chunks
+            search_results_tuples = crud.search_vectors(db=db, query_embedding=question_vector, document_ids=safe_doc_ids, k=5)
         
         search_results = []
         for chunk_id, distance in search_results_tuples:

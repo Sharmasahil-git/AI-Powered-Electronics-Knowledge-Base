@@ -145,9 +145,6 @@ def rename_chat_thread(db: Session, thread_id: int, session_id: str, new_title: 
 def delete_chat_thread(db: Session, thread_id: int, session_id: str) -> bool:
     thread = get_chat_thread_by_id(db, thread_id, session_id)
     if thread:
-        # Delete all messages first to avoid foreign key constraint violations
-        db.query(ChatHistory).filter(ChatHistory.thread_id == thread_id).delete(synchronize_session=False)
-        
         db.delete(thread)
         db.commit()
         return True
