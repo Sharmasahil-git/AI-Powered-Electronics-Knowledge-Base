@@ -1,10 +1,21 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Tldraw, createShapeId, Editor, AssetRecordType } from "tldraw";
+import { createShapeId, Editor, AssetRecordType } from "tldraw";
 import "tldraw/tldraw.css";
 import { ArrowLeft, Upload, Loader2, X } from "lucide-react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
+
+const Tldraw = dynamic(async () => (await import("tldraw")).Tldraw, { 
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-full flex items-center justify-center text-[var(--text-secondary)] gap-2">
+      <Loader2 size={16} className="animate-spin" />
+      <span className="text-[13px] font-medium">Loading Whiteboard Engine...</span>
+    </div>
+  )
+});
 
 export default function CanvasPage() {
   const [editor, setEditor] = useState<Editor | null>(null);
