@@ -10,8 +10,8 @@ interface CanvasWrapperProps {
 export default function CanvasWrapper({ onMount }: CanvasWrapperProps) {
   return (
     <div style={{ position: 'absolute', inset: 0, width: '100vw', height: '100vh', zIndex: 0 }}>
-      <Tldraw 
-        onMount={onMount} 
+      <Tldraw
+        onMount={onMount}
         persistenceKey="datasheet-ai-pro-canvas"
       />
     </div>
