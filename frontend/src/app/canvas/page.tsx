@@ -83,8 +83,6 @@ export default function CanvasPage() {
     // Defer state updates to avoid React mounting conflicts in production
     setTimeout(() => {
       try {
-        editor.updateInstanceState({ isGridMode: true });
-
         const pendingDataStr = localStorage.getItem("pendingCanvasData");
         if (pendingDataStr) {
           const pendingData = JSON.parse(pendingDataStr);
