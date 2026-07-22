@@ -41,12 +41,12 @@ class CanvasErrorBoundary extends Component<{children: ReactNode}, {hasError: bo
   }
 }
 
-const Tldraw = dynamic(async () => (await import("tldraw")).Tldraw, { 
+const CanvasWrapper = dynamic(() => import("@/components/chat/CanvasWrapper"), { 
   ssr: false,
   loading: () => (
-    <div className="w-full h-full flex items-center justify-center text-[var(--text-secondary)] gap-2">
-      <Loader2 size={16} className="animate-spin" />
-      <span className="text-[13px] font-medium">Loading Whiteboard Engine...</span>
+    <div className="w-full h-full absolute inset-0 flex flex-col items-center justify-center bg-[var(--bg-primary)] text-[var(--text-secondary)] gap-3 z-0">
+      <Loader2 size={24} className="animate-spin text-blue-500" />
+      <span className="text-[14px] font-medium tracking-wide">Booting Whiteboard Engine...</span>
     </div>
   )
 });
@@ -344,7 +344,7 @@ export default function CanvasPage() {
       )}
 
       <div className="flex-1 w-full h-full relative z-0">
-        <Tldraw onMount={handleMount} />
+        <CanvasWrapper onMount={handleMount} />
       </div>
     </main>
     </CanvasErrorBoundary>
