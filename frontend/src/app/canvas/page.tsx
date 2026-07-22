@@ -65,7 +65,7 @@ export default function CanvasPage() {
             x: 100,
             y: currentY,
             props: { text: String(pendingData.text) },
-          });
+          } as any);
         }
         
         localStorage.removeItem("pendingCanvasData");
