@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect, Component, ErrorInfo, ReactNode } from "react";
+import React, { useState, useRef, useEffect, Component, ErrorInfo, ReactNode, useCallback } from "react";
 import { createShapeId, Editor, AssetRecordType } from "tldraw";
 import { ArrowLeft, Upload, Loader2, X, AlertTriangle } from "lucide-react";
 import Link from "next/link";
@@ -77,66 +77,66 @@ export default function CanvasPage() {
   const [pageRange, setPageRange] = useState("1-5");
   const [isExtracting, setIsExtracting] = useState(false);
 
-  const handleMount = (editor: Editor) => {
+  const handleMount = useCallback((editor: Editor) => {
     setEditor(editor);
 
-    // Defer state updates to avoid React mounting conflicts in production
-    setTimeout(() => {
-      try {
-        const pendingDataStr = localStorage.getItem("pendingCanvasData");
-        if (pendingDataStr) {
-          const pendingData = JSON.parse(pendingDataStr);
-          let currentY = 100;
+    try {
+      editor.updateInstanceState({ isGridMode: true });
+      editor.user.updateUserPreferences({ colorScheme: document.documentElement.classList.contains('dark') ? 'dark' : 'light' });
 
-          if (pendingData.images && pendingData.images.length > 0) {
-            pendingData.images.forEach((imgUrl: string) => {
-              const assetId = AssetRecordType.createId();
-              editor.createAssets([{
-                id: assetId,
-                type: "image",
-                typeName: "asset",
-                props: {
-                  name: "chat-image",
-                  src: imgUrl,
-                  w: 400,
-                  h: 300,
-                  mimeType: "image/png",
-                  isAnimated: false
-                },
-                meta: {}
-              }]);
+      const pendingDataStr = localStorage.getItem("pendingCanvasData");
+      if (pendingDataStr) {
+        const pendingData = JSON.parse(pendingDataStr);
+        let currentY = 100;
 
-              const id = createShapeId();
-              editor.createShape({
-                id,
-                type: "image",
-                x: 100,
-                y: currentY,
-                props: { w: 400, h: 300, assetId },
-              });
-              currentY += 350;
-            });
-          }
+        if (pendingData.images && pendingData.images.length > 0) {
+          pendingData.images.forEach((imgUrl: string) => {
+            const assetId = AssetRecordType.createId();
+            editor.createAssets([{
+              id: assetId,
+              type: "image",
+              typeName: "asset",
+              props: {
+                name: "chat-image",
+                src: imgUrl,
+                w: 400,
+                h: 300,
+                mimeType: "image/png",
+                isAnimated: false
+              },
+              meta: {}
+            }]);
 
-          if (pendingData.text) {
             const id = createShapeId();
-            // @ts-ignore - tldraw union types can be overly strict with dynamic props
             editor.createShape({
               id,
-              type: "geo", // Geo shape supports text and acts as a textbox
+              type: "image",
               x: 100,
               y: currentY,
-              props: { text: String(pendingData.text) },
-            } as any);
-          }
-
-          localStorage.removeItem("pendingCanvasData");
+              props: { w: 400, h: 300, assetId },
+            });
+            currentY += 350;
+          });
         }
-      } catch (e) {
-        console.error("Failed to parse pending canvas data", e);
+
+        if (pendingData.text) {
+          const id = createShapeId();
+          // @ts-ignore - tldraw union types can be overly strict with dynamic props
+          editor.createShape({
+            id,
+            type: "geo", // Geo shape supports text and acts as a textbox
+            x: 100,
+            y: currentY,
+            props: { text: String(pendingData.text) },
+          } as any);
+        }
+
+        localStorage.removeItem("pendingCanvasData");
       }
-    }, 100);
-  };
+    } catch (e) {
+      console.error("Failed to parse pending canvas data", e);
+    }
+  }, []);
 
   const onFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

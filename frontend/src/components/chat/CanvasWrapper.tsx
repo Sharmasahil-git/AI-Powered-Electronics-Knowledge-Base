@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { Tldraw, Editor } from "tldraw";
 import "tldraw/tldraw.css"; // The CSS must be imported inside the wrapper!
 
@@ -9,10 +10,11 @@ interface CanvasWrapperProps {
 
 export default function CanvasWrapper({ onMount }: CanvasWrapperProps) {
   return (
-    <div style={{ position: 'absolute', inset: 0, width: '100vw', height: '100vh', zIndex: 0 }}>
-      <Tldraw
-        onMount={onMount}
-        persistenceKey="datasheet-ai-pro-canvas"
+    <div style={{ position: 'absolute', inset: 0, zIndex: 0 }}>
+      {/* NO persistenceKey - forces in-memory store to prevent IndexedDB production crashes */}
+      <Tldraw 
+        onMount={onMount} 
+        forceMobile={false}
       />
     </div>
   );
