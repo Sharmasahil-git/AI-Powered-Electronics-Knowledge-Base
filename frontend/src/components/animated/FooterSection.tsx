@@ -76,7 +76,7 @@ export default function FooterSection() {
               Have questions or want to chat?
             </p>
             <p className="text-[15px] font-medium text-[var(--text-secondary)] flex items-center gap-2">
-              Drop us a line <span className="opacity-40">→</span> <a href="mailto:hello@datasheetai.local" className="text-blue-600 dark:text-[#facc15] hover:underline">hello@datasheetai.local</a>
+              Drop us a line <span className="opacity-40">→</span> <a href="mailto:hello@datasheetai.local" className="text-blue-600 dark:text-[#facc15] hover:underline">edtsilofficial@gmail.com</a>
             </p>
           </div>
 

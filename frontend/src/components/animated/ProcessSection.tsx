@@ -73,10 +73,10 @@ export default function ProcessSection() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: false, margin: "-100px" }}
           transition={{ duration: 0.6, delay: 0.2 }}
-          className="relative w-full h-[540px] bg-white/80 dark:bg-[#050505] rounded-[2rem] border border-[var(--border-color)] overflow-hidden flex flex-col backdrop-blur-md"
+          className="relative w-full min-h-[540px] bg-white/80 dark:bg-[#050505] rounded-[2rem] border border-[var(--border-color)] overflow-hidden flex flex-col justify-between backdrop-blur-md"
         >
           {/* Card Text Content */}
-          <div className="relative z-10 p-10 max-w-[90%]">
+          <div className="relative z-10 p-10 pb-6 max-w-[90%]">
             <h3 className="text-3xl font-medium tracking-tight text-[var(--text-primary)] mb-3">Data Structuring</h3>
             <p className="text-[14px] text-[var(--text-secondary)] leading-relaxed mb-6">
               Turn unstructured PDF text into clean, validated JSON schemas automatically, without exposing your infrastructure to complex Regex rules.
@@ -87,7 +87,7 @@ export default function ProcessSection() {
           </div>
 
           {/* Code Blocks Visual */}
-          <div className="absolute left-10 right-10 bottom-8 flex flex-col gap-4">
+          <div className="relative z-10 px-10 pb-10 flex flex-col gap-4 mt-auto">
             
             {/* Top Code Window */}
             <div className="w-full bg-[#0A0A0C] border border-white/10 rounded-xl overflow-hidden shadow-2xl">
